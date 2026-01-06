@@ -1,0 +1,65 @@
+/*
+  Mobile/Tablet responsive fixes.
+  IMPORTANT: only max-width media queries here, so desktop stays EXACTLY the same.
+*/
+
+html, body { width: 100%; }
+
+/* Prevent horizontal scroll on small screens */
+@media (max-width: 768px) {
+  body { overflow-x: hidden; }
+  #root { overflow-x: clip; }
+
+  img, video {
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  /* Header: keep icons, hide long text labels */
+  .catalogHeader__text {
+    display: none;
+  }
+
+  /* Mobile UX: don't duplicate "Filters" entry point */
+  .catalogHeader__filtersBtn {
+    display: none;
+  }
+
+  /* Toolbar: stack controls */
+  .catalogToolbar__row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .catalogToolbar__controls {
+    flex-wrap: wrap;
+  }
+
+  .catalogToolbar__controls select,
+  .catalogToolbar__controls button {
+    width: 100%;
+  }
+
+  /* Product cards: prevent any content from forcing a wider-than-viewport layout
+     (Firestore items may contain long unbroken strings in description/notes). */
+  .perfumeCard {
+    max-width: 100%;
+    min-width: 0;
+  }
+  .perfumeCard * {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .perfumeCard__desc {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+}
+
+/* Very small phones */
+@media (max-width: 420px) {
+  .catalogToolbar__search input {
+    padding-left: 44px; /* keep room for icon */
+  }
+}
