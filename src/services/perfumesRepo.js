@@ -1,4 +1,4 @@
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase/firebase";
 
 const ALLOWED_SEASONS = new Set(["Зима", "Весна", "Лето", "Осень"]);
@@ -146,4 +146,22 @@ export async function fetchPerfumesWithDiagnostics() {
   };
 
   return { perfumes, issues, summary };
+}
+
+export async function upsertPerfume(id, data) {
+  if (!id) throw new Error("id обязателен");
+  const ref = doc(db, "perfumes", id);
+  await setDoc(
+    ref,
+    {
+      ...data,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+export async function deletePerfume(id) {
+  if (!id) throw new Error("id обязателен");
+  await deleteDoc(doc(db, "perfumes", id));
 }
