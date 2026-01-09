@@ -1,0 +1,906 @@
+// src/pages/AdminPage.js
+import React from "react";
+import { useNavigate } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
+import { X } from "lucide-react";
+
+import { THEME } from "../data/theme";
+import { useAuth } from "../state/auth";
+import { db, storage } from "../firebase/firebase";
+import { fetchPerfumesWithDiagnostics } from "../services/perfumesRepo";
+
+import {
+  doc,
+  getDoc,
+  setDoc,
+  deleteDoc,
+  serverTimestamp,
+} from "firebase/firestore";
+
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+
+const SEASONS = ["Зима", "Весна", "Лето", "Осень"];
+const DAYNIGHT = ["Утро", "День", "Вечер", "Ночь"];
+
+function splitList(s) {
+  return String(s || "")
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+function joinList(arr) {
+  return Array.isArray(arr) ? arr.join(", ") : "";
+}
+function toggleInArray(arr, v) {
+  return arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
+}
+function clampInt(v, min, max, fallback) {
+  const n = Number(v);
+  const x = Number.isFinite(n) ? Math.round(n) : fallback;
+  return Math.max(min, Math.min(max, x));
+}
+function nextId(perfumes) {
+  let max = 0;
+  for (const p of perfumes || []) {
+    const m = String(p.id || "").match(/^p-(\d{1,4})$/i);
+    if (m) max = Math.max(max, Number(m[1]));
+  }
+  const n = max + 1;
+  const pad = n < 10 ? `0${n}` : String(n);
+  return `p-${pad}`;
+}
+
+function Input({ ...props }) {
+  return (
+    <input
+      {...props}
+      className={"w-full rounded-2xl border px-4 py-3 text-sm outline-none " + (props.className || "")}
+      style={{
+        borderColor: THEME.border2,
+        background: "rgba(255,255,255,0.03)",
+        color: THEME.text,
+        ...(props.style || {}),
+      }}
+    />
+  );
+}
+
+function TextArea({ ...props }) {
+  return (
+    <textarea
+      {...props}
+      className={"w-full rounded-2xl border px-4 py-3 text-sm outline-none min-h-[100px] " + (props.className || "")}
+      style={{
+        borderColor: THEME.border2,
+        background: "rgba(255,255,255,0.03)",
+        color: THEME.text,
+        ...(props.style || {}),
+      }}
+    />
+  );
+}
+
+function Chip({ active, onClick, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-full border px-3 py-1.5 text-[12px] hover:bg-white/[0.06]"
+      style={{
+        borderColor: THEME.border2,
+        background: active ? "rgba(255,255,255,0.06)" : "transparent",
+        color: THEME.text,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+function Field({ label, hint, children }) {
+  return (
+    <label className="block">
+      <div className="mb-1 text-xs" style={{ color: THEME.muted }}>
+        {label}
+        {hint ? <span className="ml-2 opacity-70">· {hint}</span> : null}
+      </div>
+      {children}
+    </label>
+  );
+}
+
+function EditorModal({ open, title, onClose, children, footer }) {
+  // закрытие по ESC
+  React.useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose?.();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  return (
+    <AnimatePresence>
+      {open ? (
+        <>
+          <motion.div
+            className="fixed inset-0 z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <div
+              className="absolute inset-0 bg-black/70"
+              onClick={onClose}
+            />
+            <div className="absolute inset-0 flex items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0, y: 16, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 16, scale: 0.98 }}
+                transition={{ duration: 0.18 }}
+                className="w-full max-w-5xl rounded-3xl border overflow-hidden"
+                style={{
+                  borderColor: THEME.border2,
+                  background: THEME.surface,
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div
+                  className="px-5 py-4 border-b flex items-start justify-between gap-3"
+                  style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold">{title}</div>
+                    <div className="mt-1 text-xs" style={{ color: THEME.muted }}>
+                      Добавление/редактирование открывается в модалке — как ты и хотел.
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="rounded-full border p-2 hover:bg-white/[0.06]"
+                    style={{ borderColor: THEME.border2, color: THEME.text }}
+                    onClick={onClose}
+                    aria-label="Close"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* body scroll */}
+                <div className="px-5 py-4" style={{ maxHeight: "72vh", overflow: "auto" }}>
+                  {children}
+                </div>
+
+                {/* footer sticky */}
+                <div
+                  className="px-5 py-4 border-t"
+                  style={{
+                    borderColor: THEME.border2,
+                    background: "linear-gradient(to top, rgba(12,12,16,0.98), rgba(12,12,16,0.78))",
+                    backdropFilter: "blur(10px)",
+                  }}
+                >
+                  {footer}
+                </div>
+              </motion.div>
+            </div>
+          </motion.div>
+        </>
+      ) : null}
+    </AnimatePresence>
+  );
+}
+
+export default function AdminPage() {
+  const nav = useNavigate();
+  const { user, authReady, openAuthModal } = useAuth();
+
+  const uid = user?.uid || "";
+  const sessionLabel = !user ? "—" : user.isAnonymous ? "Гость" : user.email || "Аккаунт";
+
+  const [checkingAdmin, setCheckingAdmin] = React.useState(true);
+  const [isAdmin, setIsAdmin] = React.useState(false);
+
+  const [loading, setLoading] = React.useState(true);
+  const [items, setItems] = React.useState([]);
+  const [diag, setDiag] = React.useState(null);
+  const [q, setQ] = React.useState("");
+
+  const [editorOpen, setEditorOpen] = React.useState(false);
+  const [saving, setSaving] = React.useState(false);
+  const [uploading, setUploading] = React.useState(false);
+
+  const [draft, setDraft] = React.useState(() => ({
+    id: "",
+    brand: "",
+    name: "",
+    description: "",
+    basePrice: 0,
+    baseVolume: 50,
+    seasons: [],
+    dayNight: [],
+    tagsText: "",
+    notesTopText: "",
+    notesHeartText: "",
+    notesBaseText: "",
+    sillage: 3,
+    longevity: 3,
+    image: "",
+    currency: "₽",
+  }));
+
+  const filtered = React.useMemo(() => {
+    const query = (q || "").trim().toLowerCase();
+    if (!query) return items;
+    return items.filter((p) => {
+      const hay = [
+        p.id,
+        p.brand,
+        p.name,
+        p.description,
+        ...(p.tags || []),
+        ...(p.notes?.top || []),
+        ...(p.notes?.heart || []),
+        ...(p.notes?.base || []),
+      ]
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(query);
+    });
+  }, [items, q]);
+
+  const load = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const { perfumes, issues, summary } = await fetchPerfumesWithDiagnostics();
+      setItems(perfumes || []);
+      setDiag({ issues: issues || [], summary: summary || null });
+    } catch (e) {
+      console.error(e);
+      setItems([]);
+      setDiag(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // admin check
+  React.useEffect(() => {
+    if (!authReady) return;
+    let alive = true;
+
+    (async () => {
+      try {
+        if (!uid) {
+          if (!alive) return;
+          setIsAdmin(false);
+          return;
+        }
+        const snap = await getDoc(doc(db, "admins", uid));
+        if (!alive) return;
+        setIsAdmin(snap.exists());
+      } catch {
+        if (!alive) return;
+        setIsAdmin(false);
+      } finally {
+        if (!alive) return;
+        setCheckingAdmin(false);
+      }
+    })();
+
+    return () => (alive = false);
+  }, [authReady, uid]);
+
+  React.useEffect(() => {
+    if (!authReady) return;
+    load();
+  }, [authReady, load]);
+
+  function openNew() {
+    const id = nextId(items);
+    setDraft({
+      id,
+      brand: "",
+      name: "",
+      description: "",
+      basePrice: 0,
+      baseVolume: 50,
+      seasons: [],
+      dayNight: [],
+      tagsText: "",
+      notesTopText: "",
+      notesHeartText: "",
+      notesBaseText: "",
+      sillage: 3,
+      longevity: 3,
+      image: "",
+      currency: "₽",
+    });
+    setEditorOpen(true);
+  }
+
+  function openEdit(p) {
+    setDraft({
+      id: p.id || "",
+      brand: p.brand || "",
+      name: p.name || "",
+      description: p.description || "",
+      basePrice: Number(p.basePrice ?? p.price ?? 0),
+      baseVolume: Number(p.baseVolume ?? p.volume ?? 50),
+      seasons: Array.isArray(p.seasons) ? p.seasons : [],
+      dayNight: Array.isArray(p.dayNight) ? p.dayNight : [],
+      tagsText: joinList(p.tags),
+      notesTopText: joinList(p.notes?.top),
+      notesHeartText: joinList(p.notes?.heart),
+      notesBaseText: joinList(p.notes?.base),
+      sillage: Number(p.sillage || 3),
+      longevity: Number(p.longevity || 3),
+      image: p.image || "",
+      currency: p.currency || "₽",
+    });
+    setEditorOpen(true);
+  }
+
+  async function save() {
+    const id = String(draft.id || "").trim();
+    if (!id) return alert("Укажи ID (например p-01).");
+    if (!draft.brand.trim()) return alert("Заполни бренд.");
+    if (!draft.name.trim()) return alert("Заполни название.");
+
+    const payload = {
+      brand: draft.brand.trim(),
+      name: draft.name.trim(),
+      description: String(draft.description || "").trim(),
+
+      basePrice: Number(draft.basePrice || 0),
+      baseVolume: clampInt(draft.baseVolume, 10, 200, 50),
+
+      seasons: (draft.seasons || []).filter((x) => SEASONS.includes(x)),
+      dayNight: (draft.dayNight || []).filter((x) => DAYNIGHT.includes(x)),
+
+      tags: splitList(draft.tagsText).slice(0, 40),
+
+      notes: {
+        top: splitList(draft.notesTopText).slice(0, 60),
+        heart: splitList(draft.notesHeartText).slice(0, 60),
+        base: splitList(draft.notesBaseText).slice(0, 60),
+      },
+
+      sillage: clampInt(draft.sillage, 1, 5, 3),
+      longevity: clampInt(draft.longevity, 1, 5, 3),
+
+      image: String(draft.image || "").trim(),
+      currency: String(draft.currency || "₽").trim() || "₽",
+
+      updatedAt: serverTimestamp(),
+    };
+
+    setSaving(true);
+    try {
+      await setDoc(doc(db, "perfumes", id), payload, { merge: true });
+      await load();
+      setEditorOpen(false);
+    } catch (e) {
+      console.error(e);
+      alert(e?.message || "Не получилось сохранить.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function remove() {
+    const id = String(draft.id || "").trim();
+    if (!id) return;
+    if (!window.confirm(`Удалить товар ${id}?`)) return;
+
+    setSaving(true);
+    try {
+      await deleteDoc(doc(db, "perfumes", id));
+      await load();
+      setEditorOpen(false);
+    } catch (e) {
+      console.error(e);
+      alert(e?.message || "Не получилось удалить.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function uploadImage(file) {
+    const id = String(draft.id || "").trim();
+    if (!id) return alert("Сначала укажи ID товара (например p-01).");
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const safeName = String(file.name || "image").replace(/[^\w.\-]+/g, "_");
+      const path = `perfumes/${id}/${Date.now()}_${safeName}`;
+      const r = ref(storage, path);
+      await uploadBytes(r, file);
+      const url = await getDownloadURL(r);
+      setDraft((p) => ({ ...p, image: url }));
+    } catch (e) {
+      console.error(e);
+      alert(
+        "Не удалось загрузить изображение в Storage.\n" +
+          "Если нужно — скажи, и я дам точные Storage Rules + проверим storageBucket.\n\n" +
+          (e?.message || "")
+      );
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function copyUid() {
+    if (!uid) return;
+    navigator.clipboard?.writeText(uid).then(
+      () => alert("UID скопирован"),
+      () => alert("Не удалось скопировать UID")
+    );
+  }
+
+  if (!authReady) {
+    return (
+      <div className="min-h-screen p-6" style={{ background: THEME.bg, color: THEME.text }}>
+        Загрузка...
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen" style={{ background: THEME.bg, color: THEME.text }}>
+      {/* Top bar */}
+      <div
+        className="sticky top-0 z-40 border-b"
+        style={{
+          borderColor: THEME.border2,
+          background: "rgba(12,12,16,0.78)",
+          backdropFilter: "blur(10px)",
+        }}
+      >
+        <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="text-sm font-semibold">Админка товаров</div>
+            <div className="text-xs mt-0.5" style={{ color: THEME.muted }}>
+              Сессия: <span style={{ color: THEME.text }}>{sessionLabel}</span>
+              {uid ? (
+                <>
+                  {" "}· UID: <span className="select-all" style={{ color: THEME.text }}>{uid}</span>
+                  <button
+                    className="ml-2 rounded-full border px-3 py-1 text-[11px] hover:bg-white/[0.06]"
+                    style={{ borderColor: THEME.border2, color: THEME.text }}
+                    onClick={copyUid}
+                    type="button"
+                  >
+                    Копировать UID
+                  </button>
+                </>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              type="button"
+              className="rounded-full border px-4 py-2 text-sm hover:bg-white/[0.06]"
+              style={{ borderColor: THEME.border2, color: THEME.text }}
+              onClick={() => nav("/")}
+            >
+              В каталог
+            </button>
+            <button
+              type="button"
+              className="rounded-full border px-4 py-2 text-sm hover:bg-white/[0.06]"
+              style={{ borderColor: THEME.border2, color: THEME.text }}
+              onClick={openAuthModal}
+            >
+              Аккаунт
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <main className="mx-auto max-w-7xl px-4 py-5">
+        {checkingAdmin ? (
+          <div className="rounded-3xl border p-4" style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}>
+            Проверяем доступ...
+          </div>
+        ) : !isAdmin ? (
+          <div
+            className="rounded-3xl border p-5"
+            style={{ borderColor: "rgba(255,120,120,0.35)", background: "rgba(255,120,120,0.06)" }}
+          >
+            <div className="text-sm font-semibold">Нет доступа</div>
+            <div className="mt-2 text-sm" style={{ color: THEME.muted }}>
+              1) нажми «Аккаунт» и зайди (не гость),<br />
+              2) скопируй UID,<br />
+              3) в Firestore создай документ <b>admins/&lt;UID&gt;</b>.
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* toolbar */}
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-center gap-2">
+                <input
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="Поиск по названию / нотам / тегам..."
+                  className="w-full lg:w-[420px] rounded-full border px-4 py-2 text-sm outline-none"
+                  style={{
+                    borderColor: THEME.border2,
+                    background: "rgba(255,255,255,0.03)",
+                    color: THEME.text,
+                  }}
+                />
+                <button
+                  type="button"
+                  className="rounded-full border px-4 py-2 text-sm hover:bg-white/[0.06]"
+                  style={{ borderColor: THEME.border2, color: THEME.text }}
+                  onClick={load}
+                  disabled={loading}
+                >
+                  {loading ? "..." : "Обновить"}
+                </button>
+
+                {diag?.summary?.warnings ? (
+                  <span
+                    className="hidden lg:inline-flex rounded-full border px-3 py-1 text-[12px]"
+                    style={{
+                      borderColor: "rgba(255,200,120,0.35)",
+                      background: "rgba(255,200,120,0.06)",
+                      color: THEME.text,
+                    }}
+                    title="В данных есть предупреждения"
+                  >
+                    ⚠️ warnings: {diag.summary.warnings}
+                  </span>
+                ) : null}
+              </div>
+
+              <button
+                type="button"
+                className="rounded-full px-5 py-2.5 text-sm font-semibold"
+                style={{ background: THEME.accent, color: "#0B0B0F" }}
+                onClick={openNew}
+              >
+                + Новый товар
+              </button>
+            </div>
+
+            {/* list */}
+            <div className="mt-4">
+              {loading ? (
+                <div className="text-sm opacity-70">Загрузка...</div>
+              ) : filtered.length === 0 ? (
+                <div className="text-sm opacity-70">Нет товаров</div>
+              ) : (
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {filtered.map((p) => (
+                    <div
+                      key={p.id}
+                      className="rounded-3xl border p-4"
+                      style={{
+                        borderColor: THEME.border2,
+                        background: "rgba(255,255,255,0.02)",
+                      }}
+                    >
+                      <div className="flex items-start gap-4">
+                        <div
+                          className="rounded-2xl border overflow-hidden flex-shrink-0"
+                          style={{
+                            width: 110,
+                            height: 110,
+                            borderColor: THEME.border2,
+                            background: "rgba(255,255,255,0.04)",
+                          }}
+                        >
+                          {p.image ? (
+                            <img
+                              src={p.image}
+                              alt=""
+                              style={{
+                                width: "110px",
+                                height: "110px",
+                                objectFit: "cover",
+                                display: "block",
+                              }}
+                            />
+                          ) : (
+                            <div className="h-full w-full flex items-center justify-center text-xs" style={{ color: THEME.muted }}>
+                              No image
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div
+                                className="text-sm font-semibold"
+                                style={{
+                                  whiteSpace: "nowrap",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                }}
+                              >
+                                {p.brand} — {p.name}
+                              </div>
+
+                              <div className="mt-1 text-xs" style={{ color: THEME.muted }}>
+                                ID: <span style={{ color: THEME.text }}>{p.id}</span> ·{" "}
+                                <span style={{ color: THEME.text }}>
+                                  {p.price ?? p.basePrice ?? 0}{p.currency || "₽"}
+                                </span>{" "}
+                                · {p.volume ?? p.baseVolume ?? 0}ml
+                              </div>
+                            </div>
+
+                            <div className="flex gap-2 flex-shrink-0">
+                              <button
+                                type="button"
+                                className="rounded-full border px-4 py-2 text-xs hover:bg-white/[0.06]"
+                                style={{ borderColor: THEME.border2, color: THEME.text }}
+                                onClick={() => openEdit(p)}
+                              >
+                                Редактировать
+                              </button>
+                            </div>
+                          </div>
+
+                          {p.description ? (
+                            <div
+                              className="mt-2 text-xs"
+                              style={{
+                                color: THEME.muted,
+                                display: "-webkit-box",
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: "vertical",
+                                overflow: "hidden",
+                              }}
+                            >
+                              {p.description}
+                            </div>
+                          ) : null}
+
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {(p.seasons || []).slice(0, 4).map((s) => (
+                              <span
+                                key={"s_" + p.id + "_" + s}
+                                className="rounded-full border px-3 py-1 text-[11px]"
+                                style={{
+                                  borderColor: THEME.border2,
+                                  background: "rgba(255,255,255,0.03)",
+                                  color: THEME.text,
+                                }}
+                              >
+                                {s}
+                              </span>
+                            ))}
+                            {(p.dayNight || []).slice(0, 4).map((d) => (
+                              <span
+                                key={"d_" + p.id + "_" + d}
+                                className="rounded-full border px-3 py-1 text-[11px]"
+                                style={{
+                                  borderColor: THEME.border2,
+                                  background: "rgba(255,255,255,0.03)",
+                                  color: THEME.text,
+                                }}
+                              >
+                                {d}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* modal editor */}
+            <EditorModal
+              open={editorOpen}
+              title={draft?.id ? `Товар: ${draft.id}` : "Новый товар"}
+              onClose={() => setEditorOpen(false)}
+              footer={
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-xs" style={{ color: THEME.muted }}>
+                    {saving ? "Сохранение..." : "Поля сохраняются в Firestore (perfumes/<id>)"}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className="rounded-full border px-4 py-2 text-sm hover:bg-white/[0.06]"
+                      style={{ borderColor: THEME.border2, color: THEME.text }}
+                      onClick={() => setEditorOpen(false)}
+                      disabled={saving || uploading}
+                    >
+                      Отмена
+                    </button>
+
+                    <button
+                      type="button"
+                      className="rounded-full border px-4 py-2 text-sm"
+                      style={{ borderColor: "rgba(255,120,120,0.45)", color: THEME.text }}
+                      onClick={remove}
+                      disabled={saving || uploading || !String(draft.id || "").trim()}
+                      title="Удаляет документ"
+                    >
+                      Удалить
+                    </button>
+
+                    <button
+                      type="button"
+                      className="rounded-full px-5 py-2.5 text-sm font-semibold"
+                      style={{ background: THEME.accent, color: "#0B0B0F" }}
+                      onClick={save}
+                      disabled={saving || uploading}
+                    >
+                      Сохранить
+                    </button>
+                  </div>
+                </div>
+              }
+            >
+              <div className="grid gap-4 lg:grid-cols-3">
+                {/* left preview */}
+                <div className="lg:col-span-1">
+                  <div className="rounded-3xl border p-3" style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}>
+                    <div className="text-xs font-semibold">Превью</div>
+                    <div
+                      className="mt-3 rounded-2xl border overflow-hidden"
+                      style={{
+                        borderColor: THEME.border2,
+                        background: "rgba(255,255,255,0.04)",
+                        width: "100%",
+                        aspectRatio: "1 / 1",
+                      }}
+                    >
+                      {draft.image ? (
+                        <img
+                          src={draft.image}
+                          alt=""
+                          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                        />
+                      ) : (
+                        <div className="h-full w-full flex items-center justify-center text-xs" style={{ color: THEME.muted }}>
+                          Нет картинки
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-3 flex items-center gap-3">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={uploading || saving}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) uploadImage(f);
+                          e.target.value = "";
+                        }}
+                      />
+                    </div>
+
+                    <div className="mt-2 text-xs break-all" style={{ color: THEME.muted }}>
+                      {uploading ? "Загрузка..." : draft.image || "URL появится после загрузки или вставь вручную"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* right form */}
+                <div className="lg:col-span-2">
+                  <div className="grid gap-3 lg:grid-cols-2">
+                    <Field label="ID" hint="например p-01 (лучше так)">
+                      <Input value={draft.id} onChange={(e) => setDraft((p) => ({ ...p, id: e.target.value }))} />
+                    </Field>
+
+                    <Field label="Валюта" hint="по умолчанию ₽">
+                      <Input value={draft.currency} onChange={(e) => setDraft((p) => ({ ...p, currency: e.target.value }))} />
+                    </Field>
+
+                    <Field label="Бренд">
+                      <Input value={draft.brand} onChange={(e) => setDraft((p) => ({ ...p, brand: e.target.value }))} />
+                    </Field>
+
+                    <Field label="Название">
+                      <Input value={draft.name} onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))} />
+                    </Field>
+
+                    <div className="lg:col-span-2">
+                      <Field label="Описание">
+                        <TextArea value={draft.description} onChange={(e) => setDraft((p) => ({ ...p, description: e.target.value }))} />
+                      </Field>
+                    </div>
+
+                    <Field label="Цена (basePrice)">
+                      <Input type="number" value={draft.basePrice} onChange={(e) => setDraft((p) => ({ ...p, basePrice: e.target.value }))} />
+                    </Field>
+
+                    <Field label="Объём (baseVolume, ml)">
+                      <Input type="number" value={draft.baseVolume} onChange={(e) => setDraft((p) => ({ ...p, baseVolume: e.target.value }))} />
+                    </Field>
+
+                    <div className="lg:col-span-2">
+                      <div className="mb-2 text-xs" style={{ color: THEME.muted }}>Сезоны</div>
+                      <div className="flex flex-wrap gap-2">
+                        {SEASONS.map((s) => (
+                          <Chip
+                            key={s}
+                            active={draft.seasons.includes(s)}
+                            onClick={() => setDraft((p) => ({ ...p, seasons: toggleInArray(p.seasons, s) }))}
+                          >
+                            {s}
+                          </Chip>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="lg:col-span-2">
+                      <div className="mb-2 text-xs" style={{ color: THEME.muted }}>Время дня</div>
+                      <div className="flex flex-wrap gap-2">
+                        {DAYNIGHT.map((d) => (
+                          <Chip
+                            key={d}
+                            active={draft.dayNight.includes(d)}
+                            onClick={() => setDraft((p) => ({ ...p, dayNight: toggleInArray(p.dayNight, d) }))}
+                          >
+                            {d}
+                          </Chip>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="lg:col-span-2">
+                      <Field label="Теги (через запятую)">
+                        <Input
+                          value={draft.tagsText}
+                          onChange={(e) => setDraft((p) => ({ ...p, tagsText: e.target.value }))}
+                          placeholder="свежий, цитрус, унисекс"
+                        />
+                      </Field>
+                    </div>
+
+                    <Field label="Ноты TOP (через запятую)">
+                      <Input value={draft.notesTopText} onChange={(e) => setDraft((p) => ({ ...p, notesTopText: e.target.value }))} />
+                    </Field>
+
+                    <Field label="Ноты HEART (через запятую)">
+                      <Input value={draft.notesHeartText} onChange={(e) => setDraft((p) => ({ ...p, notesHeartText: e.target.value }))} />
+                    </Field>
+
+                    <div className="lg:col-span-2">
+                      <Field label="Ноты BASE (через запятую)">
+                        <Input value={draft.notesBaseText} onChange={(e) => setDraft((p) => ({ ...p, notesBaseText: e.target.value }))} />
+                      </Field>
+                    </div>
+
+                    <Field label="Шлейф (1–5)">
+                      <Input type="number" min="1" max="5" value={draft.sillage} onChange={(e) => setDraft((p) => ({ ...p, sillage: e.target.value }))} />
+                    </Field>
+
+                    <Field label="Стойкость (1–5)">
+                      <Input type="number" min="1" max="5" value={draft.longevity} onChange={(e) => setDraft((p) => ({ ...p, longevity: e.target.value }))} />
+                    </Field>
+
+                    <div className="lg:col-span-2">
+                      <Field label="Картинка (URL)" hint="если не используешь Storage — вставь ссылку">
+                        <Input value={draft.image} onChange={(e) => setDraft((p) => ({ ...p, image: e.target.value }))} placeholder="https://..." />
+                      </Field>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </EditorModal>
+          </>
+        )}
+      </main>
+    </div>
+  );
+}

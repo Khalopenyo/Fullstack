@@ -1,5 +1,6 @@
 import React from "react";
 import { Routes, Route } from "react-router-dom";
+import AdminPage from "../pages/AdminPage";
 
 import CatalogPage from "../pages/CatalogPage";
 import PerfumePage from "../pages/PerfumePage";
@@ -18,6 +19,8 @@ export default function App() {
         <Route path="/cart" element={<CartPage />} />
         <Route path="/favorites" element={<FavoritesPage />} />
         <Route path="/auth" element={<AuthPage />} />
+        <Route path="/admin" element={<AdminPage />} />
+
       </Routes>
 
       <AuthModal />
