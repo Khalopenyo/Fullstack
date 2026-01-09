@@ -212,11 +212,11 @@ useEffect(() => {
   />
 ) : (
   <>
-    {computed.total > PAGE_SIZE ? (
+    {/* {computed.total > PAGE_SIZE ? (
       <div className="mt-5">
         <PaginationBar page={page} totalPages={totalPages} onPageChange={setPage} />
       </div>
-    ) : null}
+    ) : null} */}
 
     <div className="mt-5 grid gap-4 lg:grid-cols-2">
       <AnimatePresence>
@@ -246,7 +246,7 @@ useEffect(() => {
 )}
 
           {computed.total > PAGE_SIZE ? (
-            <div className="mt-6">
+            <div className="mt-5">
               <PaginationBar page={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
           ) : null}

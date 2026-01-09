@@ -30,25 +30,36 @@ export default function CatalogHeader({
       className="sticky top-0 z-30 border-b backdrop-blur"
       style={{ borderColor: THEME.border2, background: "rgba(12,12,16,0.72)" }}
     >
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
-        <div className="flex items-center gap-3">
-          <div
-            className="grid h-10 w-10 place-items-center rounded-2xl border"
-            style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}
-          >
-            <span className="h-2.5 w-2.5 rounded-full" style={{ background: THEME.accent }} />
-          </div>
-          <div>
-            <div className="text-sm font-semibold" style={{ letterSpacing: 0.2 }}>
-              Bakhur
+      <div className="mx-auto max-w-6xl px-4 py-3">
+        {/* Верхняя строка */}
+        <div className="flex items-center justify-between gap-3">
+          {/* ЛОГОТИП — НЕ ТРОГАЕМ */}
+          <div className="flex items-center gap-3">
+            <div
+              className="grid h-10 w-10 place-items-center rounded-2xl border"
+              style={{
+                borderColor: THEME.border2,
+                background: "rgba(255,255,255,0.02)",
+              }}
+            >
+              <span
+                className="h-2.5 w-2.5 rounded-full"
+                style={{ background: THEME.accent }}
+              />
             </div>
-            <div className="text-xs" style={{ color: THEME.muted }}>
-              Сертифицированные маслянные ароматы 
+            <div>
+              <div className="text-sm font-semibold" style={{ letterSpacing: 0.2 }}>
+                Bakhur
+              </div>
+              <div className="text-xs" style={{ color: THEME.muted }}>
+                Сертифицированные маслянные ароматы
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* КНОПКИ */}
+        <div className="mt-3 flex flex-wrap items-center gap-2 md:mt-0 md:flex-nowrap md:justify-end">
           <PillButton onClick={onOpenHelp}>
             <Info className="h-4 w-4" style={{ color: THEME.muted }} />
             <span className="catalogHeader__text">Логика</span>
@@ -66,16 +77,24 @@ export default function CatalogHeader({
 
           <PillButton onClick={onOpenAuth}>
             <User className="h-4 w-4" style={{ color: THEME.muted }} />
-            <span className="catalogHeader__text">{authLabel || "Аккаунт"}</span>
+            <span className="catalogHeader__text">
+              {authLabel || "Аккаунт"}
+            </span>
           </PillButton>
 
           <PillButton onClick={onGoFavorites}>
-            <Heart className="h-4 w-4" style={{ color: favoritesCount ? THEME.accent : THEME.muted }} />
+            <Heart
+              className="h-4 w-4"
+              style={{ color: favoritesCount ? THEME.accent : THEME.muted }}
+            />
             {favoritesCount || 0}
           </PillButton>
 
           <PillButton onClick={onGoCart}>
-            <ShoppingBag className="h-4 w-4" style={{ color: cartCount ? THEME.accent : THEME.muted }} />
+            <ShoppingBag
+              className="h-4 w-4"
+              style={{ color: cartCount ? THEME.accent : THEME.muted }}
+            />
             {cartCount || 0}
           </PillButton>
         </div>
