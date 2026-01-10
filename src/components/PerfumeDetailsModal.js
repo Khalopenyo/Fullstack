@@ -82,7 +82,7 @@ export default function PerfumeDetailsModal({
             exit={{ opacity: 0, y: 16 }}
           >
             <div
-              className="w-full max-w-2xl rounded-3xl border shadow-2xl max-h-[88vh] overflow-x-hidden overflow-y-auto sm:max-h-none sm:overflow-hidden"
+              className="perfumeDetailsModal__panel w-full max-w-2xl rounded-3xl border shadow-2xl overflow-x-hidden"
               style={{ background: THEME.surface, borderColor: THEME.border }}
               role="dialog"
               aria-modal="true"
@@ -118,7 +118,7 @@ export default function PerfumeDetailsModal({
                   className="rounded-3xl border p-4"
                   style={{ borderColor: THEME.border2, background: THEME.surface2 }}
                 >
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="perfumeDetailsModal__summary flex items-start justify-between gap-3">
                     <div className="flex items-start gap-4">
                       <div
                         className="shrink-0 overflow-hidden rounded-3xl border"
@@ -155,13 +155,12 @@ export default function PerfumeDetailsModal({
                       </div>
                     </div>
 
-                    <div className="text-right">
+                    <div className="perfumeDetailsModal__price text-right">
                       <div className="text-xs" style={{ color: THEME.muted }}>
                         Цена
                       </div>
-                      <div className="mt-1 text-2xl font-semibold" style={{ color: THEME.text }}>
-                        {price}
-                        {perfume.currency}
+                      <div className="perfumeDetailsModal__priceValue mt-1 text-2xl font-semibold" style={{ color: THEME.text }}>
+                        {price} {perfume.currency}
                       </div>
                       <div className="mt-1 text-xs" style={{ color: THEME.muted2 }}>
                         за {volume} мл

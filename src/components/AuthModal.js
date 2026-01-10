@@ -67,7 +67,8 @@ export default function AuthModal() {
       />
       <div
         className="relative w-full max-w-md rounded-3xl border p-5 shadow-2xl"
-        style={{ borderColor: THEME.border2, background: THEME.bg2, color: THEME.text }}
+        style={{ borderColor: "#333", background: "rgba(12,12,16,0.82)", color: "#e1e1e1ff" }}
+
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

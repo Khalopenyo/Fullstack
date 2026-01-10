@@ -177,7 +177,7 @@ export default function CheckoutModal({ open, items, total, onClose }) {
         </div>
 
         <div className="mt-4 text-xs" style={{ color: THEME.muted }}>
-          Контакты продавца редактируются в <span className="font-semibold">src/data/sellerContacts.js</span>
+          {/* Контакты продавца редактируются в <span className="font-semibold">src/data/sellerContacts.js</span> */}
         </div>
       </div>
     </div>

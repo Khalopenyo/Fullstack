@@ -150,6 +150,9 @@ useEffect(() => {
         onOpenFilters={() => setFiltersOpenMobile(true)}
           onOpenAuth={openAuthModal}
           authLabel={authLabel}
+        q={q}
+        onChangeQ={setQ}
+        onClearQ={() => setQ("")}
       />
 
       {/*
@@ -173,13 +176,8 @@ useEffect(() => {
 
         <section className="md:col-span-8">
           <CatalogToolbar
-            q={q}
-            onChangeQ={setQ}
-            onClearQ={() => setQ("")}
             sort={sort}
             onChangeSort={setSort}
-            total={computed.total}
-            favoritesCount={favorites.length}
             onClearAll={clearAll}
             onOpenFilters={() => setFiltersOpenMobile(true)}
           onOpenAuth={openAuthModal}

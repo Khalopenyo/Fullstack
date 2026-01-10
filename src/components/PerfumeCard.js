@@ -1,5 +1,6 @@
+import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Heart } from "lucide-react";
+import { ChevronDown, Heart } from "lucide-react";
 import { THEME } from "../data/theme";
 import SafeImage from "./SafeImage";
 import { priceForVolume } from "../lib/scoring";
@@ -67,6 +68,8 @@ export default function PerfumeCard({
   volume,
   onVolumeChange,
 }) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
   // чтобы не сломалось, если где-то ещё остался onOpen
   const handleDetails = onDetails || onOpen;
   const handleAddToCart = onAddToCart || onOpen;
@@ -137,17 +140,25 @@ export default function PerfumeCard({
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border px-3 py-2" style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}>
-          <div className="text-xs" style={{ color: THEME.muted }}>Сезон</div>
-          <div className="mt-1 text-sm" style={{ color: THEME.text }}>{perfume.seasons.join(" · ")}</div>
-        </div>
+        <button
+          type="button"
+          className="flex items-center justify-between rounded-2xl border px-3 py-2 text-sm transition hover:bg-white/[0.04]"
+          style={{ borderColor: THEME.border2, color: THEME.text }}
+          onClick={() => setDetailsOpen((v) => !v)}
+          aria-expanded={detailsOpen}
+          aria-label="Показать сезон и время"
+        >
+          <span style={{ color: THEME.muted }}>Сезон и время</span>
+          <ChevronDown
+            className={"h-4 w-4 transition " + (detailsOpen ? "rotate-180" : "")}
+            style={{ color: THEME.muted }}
+          />
+        </button>
 
-        <div className="rounded-2xl border px-3 py-2" style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}>
-          <div className="text-xs" style={{ color: THEME.muted }}>Время</div>
-          <div className="mt-1 text-sm" style={{ color: THEME.text }}>{perfume.dayNight.join(" · ")}</div>
-        </div>
-
-        <div className="rounded-2xl border px-3 py-2" style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}>
+        <div
+          className="rounded-2xl border px-3 py-2"
+          style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}
+        >
           <div className="flex items-center justify-between gap-2">
             <div className="text-xs" style={{ color: THEME.muted }}>Цена</div>
             <div className="text-xs" style={{ color: THEME.muted2 }}>{volume} мл</div>
@@ -158,26 +169,46 @@ export default function PerfumeCard({
         </div>
       </div>
 
+      {detailsOpen ? (
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div
+            className="rounded-2xl border px-3 py-2"
+            style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}
+          >
+            <div className="text-xs" style={{ color: THEME.muted }}>Сезон</div>
+            <div className="mt-1 text-sm" style={{ color: THEME.text }}>{perfume.seasons.join(" · ")}</div>
+          </div>
+
+          <div
+            className="rounded-2xl border px-3 py-2"
+            style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}
+          >
+            <div className="text-xs" style={{ color: THEME.muted }}>Время</div>
+            <div className="mt-1 text-sm" style={{ color: THEME.text }}>{perfume.dayNight.join(" · ")}</div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="mt-4">
         <div className="perfumeCard__desc text-sm" style={{ color: THEME.muted }}>{perfume.description}</div>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <div className="rounded-2xl border px-3 py-2" style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}>
-          <div className="text-xs" style={{ color: THEME.muted }}>Стойкость</div>
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">
+        <div className="rounded-2xl border px-2 py-1.5" style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}>
+          <div className="text-[10px]" style={{ color: THEME.muted }}>Стойкость</div>
           <div className="mt-1"><Dots value={perfume.longevity} /></div>
         </div>
-        <div className="rounded-2xl border px-3 py-2" style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}>
-          <div className="text-xs" style={{ color: THEME.muted }}>Шлейф</div>
+        <div className="rounded-2xl border px-2 py-1.5" style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}>
+          <div className="text-[10px]" style={{ color: THEME.muted }}>Шлейф</div>
           <div className="mt-1"><Dots value={perfume.sillage} /></div>
         </div>
-      </div>
+      </div> 
 
       <div className="mt-4">
         <div className="text-xs" style={{ color: THEME.muted }}>
           Совпадение: <span style={{ color: THEME.text }}>{scoreLabel}</span>
         </div>
-        <div className="mt-2 h-2 w-full overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.10)" }}>
+        <div className="mt-2 h-2 w-1/2 overflow-hidden rounded-full" style={{ background: "rgba(255,255,255,0.10)" }}>
           <div
             className="h-full rounded-full"
             style={{
