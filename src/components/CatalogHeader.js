@@ -28,6 +28,9 @@ export default function CatalogHeader({
   onChangeQ,
   onClearQ,
 }) {
+
+  const [searchActive , setSearchActive] = React.useState(false)
+
   return (
     <header
       className="sticky top-0 z-30 border-b backdrop-blur"
@@ -58,33 +61,6 @@ export default function CatalogHeader({
                 Сертифицированные маслянные ароматы
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* ПОИСК */}
-        <div className="mt-3">
-          <div className="catalogHeader__search relative">
-            <Search
-              className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2"
-              style={{ color: THEME.muted2 }}
-            />
-            <input
-              value={q}
-              onChange={(e) => onChangeQ(e.target.value)}
-              className="w-full rounded-2xl border bg-transparent px-11 py-3 text-sm outline-none focus:ring-2 focus:ring-[rgba(127,122,73,0.40)]"
-              style={{ borderColor: THEME.border2, color: THEME.text }}
-              placeholder="Поиск по бренду, названию, нотам..."
-            />
-            {q ? (
-              <button
-                type="button"
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-2 hover:bg-white/10"
-                onClick={onClearQ}
-                aria-label="Очистить поиск"
-              >
-                <X className="h-4 w-4" style={{ color: THEME.muted }} />
-              </button>
-            ) : null}
           </div>
         </div>
 
@@ -127,7 +103,42 @@ export default function CatalogHeader({
             />
             {cartCount || 0}
           </PillButton>
+
+          <PillButton>
+            <Search
+            className="h-5 w-5"
+            style={{ color: THEME.muted }}
+            onClick={()=>setSearchActive(!searchActive)}
+            />
+          </PillButton>
         </div>
+
+          {/* Илисхан 01 */}
+        {searchActive && <div className="mt-3">
+          <div className="catalogHeader__search relative">
+            <Search
+              className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2"
+              style={{ color: THEME.muted2 }}
+            />
+            <input
+              value={q}
+              onChange={(e) => onChangeQ(e.target.value)}
+              className="w-full rounded-2xl border bg-transparent px-11 py-3 text-sm outline-none focus:ring-2 focus:ring-[rgba(127,122,73,0.40)]"
+              style={{ borderColor: THEME.border2, color: THEME.text }}
+              placeholder="Поиск по бренду, названию, нотам..."
+            />
+            {q ? (
+              <button
+                type="button"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-2 hover:bg-white/10"
+                onClick={onClearQ}
+                aria-label="Очистить поиск"
+              >
+                <X className="h-4 w-4" style={{ color: THEME.muted }} />
+              </button>
+            ) : null}
+          </div>
+        </div>} 
       </div>
     </header>
   );

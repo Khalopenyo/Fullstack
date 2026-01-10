@@ -14,10 +14,6 @@ export default function CatalogToolbar({
 }) {
   return (
     <>
-      <div
-        className="catalogToolbar rounded-3xl border p-4"
-        style={{ borderColor: THEME.border2, background: THEME.surface2 }}
-      >
         {/* Row 1: sort + reset (desktop like in the original design) */}
         <div className="catalogToolbar__row flex items-center gap-3">
           <div className="catalogToolbar__controls catalogToolbar__controls--desktop flex items-center gap-2">
@@ -55,7 +51,6 @@ export default function CatalogToolbar({
         </div>
 
       {/* Row 2: counters removed per request */}
-      </div>
 
       {/* Mobile: filters + sorting below the toolbar */}
       <div

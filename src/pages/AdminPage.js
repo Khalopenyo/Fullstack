@@ -9,14 +9,7 @@ import { useAuth } from "../state/auth";
 import { db, storage } from "../firebase/firebase";
 import { fetchPerfumesWithDiagnostics } from "../services/perfumesRepo";
 
-import {
-  doc,
-  getDoc,
-  setDoc,
-  deleteDoc,
-  serverTimestamp,
-} from "firebase/firestore";
-
+import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const SEASONS = ["Зима", "Весна", "Лето", "Осень"];
@@ -54,7 +47,10 @@ function Input({ ...props }) {
   return (
     <input
       {...props}
-      className={"w-full rounded-2xl border px-4 py-3 text-sm outline-none " + (props.className || "")}
+      className={
+        "w-full rounded-2xl border px-4 py-3 text-sm outline-none " +
+        (props.className || "")
+      }
       style={{
         borderColor: THEME.border2,
         background: "rgba(255,255,255,0.03)",
@@ -69,7 +65,10 @@ function TextArea({ ...props }) {
   return (
     <textarea
       {...props}
-      className={"w-full rounded-2xl border px-4 py-3 text-sm outline-none min-h-[100px] " + (props.className || "")}
+      className={
+        "w-full rounded-2xl border px-4 py-3 text-sm outline-none min-h-[100px] " +
+        (props.className || "")
+      }
       style={{
         borderColor: THEME.border2,
         background: "rgba(255,255,255,0.03)",
@@ -110,7 +109,6 @@ function Field({ label, hint, children }) {
 }
 
 function EditorModal({ open, title, onClose, children, footer }) {
-  // закрытие по ESC
   React.useEffect(() => {
     if (!open) return;
     const onKey = (e) => {
@@ -130,10 +128,7 @@ function EditorModal({ open, title, onClose, children, footer }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            <div
-              className="absolute inset-0 bg-black/70"
-              onClick={onClose}
-            />
+            <div className="absolute inset-0 bg-black/70" onClick={onClose} />
             <div className="absolute inset-0 flex items-center justify-center p-4">
               <motion.div
                 initial={{ opacity: 0, y: 16, scale: 0.98 }}
@@ -149,7 +144,10 @@ function EditorModal({ open, title, onClose, children, footer }) {
               >
                 <div
                   className="px-5 py-4 border-b flex items-start justify-between gap-3"
-                  style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}
+                  style={{
+                    borderColor: THEME.border2,
+                    background: "rgba(255,255,255,0.02)",
+                  }}
                 >
                   <div className="min-w-0">
                     <div className="text-sm font-semibold">{title}</div>
@@ -169,17 +167,16 @@ function EditorModal({ open, title, onClose, children, footer }) {
                   </button>
                 </div>
 
-                {/* body scroll */}
                 <div className="px-5 py-4" style={{ maxHeight: "72vh", overflow: "auto" }}>
                   {children}
                 </div>
 
-                {/* footer sticky */}
                 <div
                   className="px-5 py-4 border-t"
                   style={{
                     borderColor: THEME.border2,
-                    background: "linear-gradient(to top, rgba(12,12,16,0.98), rgba(12,12,16,0.78))",
+                    background:
+                      "linear-gradient(to top, rgba(12,12,16,0.98), rgba(12,12,16,0.78))",
                     backdropFilter: "blur(10px)",
                   }}
                 >
@@ -267,7 +264,6 @@ export default function AdminPage() {
     }
   }, []);
 
-  // admin check
   React.useEffect(() => {
     if (!authReady) return;
     let alive = true;
@@ -464,7 +460,7 @@ export default function AdminPage() {
         <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="text-sm font-semibold">Админка товаров</div>
-            <div className="text-xs mt-0.5" style={{ color: THEME.muted }}>
+            {/* <div className="text-xs mt-0.5" style={{ color: THEME.muted }}>
               Сессия: <span style={{ color: THEME.text }}>{sessionLabel}</span>
               {uid ? (
                 <>
@@ -479,7 +475,7 @@ export default function AdminPage() {
                   </button>
                 </>
               ) : null}
-            </div>
+            </div> */}
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -505,25 +501,36 @@ export default function AdminPage() {
 
       <main className="mx-auto max-w-7xl px-4 py-5">
         {checkingAdmin ? (
-          <div className="rounded-3xl border p-4" style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}>
+          <div
+            className="rounded-3xl border p-4"
+            style={{
+              borderColor: THEME.border2,
+              background: "rgba(255,255,255,0.02)",
+            }}
+          >
             Проверяем доступ...
           </div>
         ) : !isAdmin ? (
           <div
             className="rounded-3xl border p-5"
-            style={{ borderColor: "rgba(255,120,120,0.35)", background: "rgba(255,120,120,0.06)" }}
+            style={{
+              borderColor: "rgba(255,120,120,0.35)",
+              background: "rgba(255,120,120,0.06)",
+            }}
           >
             <div className="text-sm font-semibold">Нет доступа</div>
             <div className="mt-2 text-sm" style={{ color: THEME.muted }}>
-              1) нажми «Аккаунт» и зайди (не гость),<br />
-              2) скопируй UID,<br />
+              1) нажми «Аккаунт» и зайди (не гость),
+              <br />
+              2) скопируй UID,
+              <br />
               3) в Firestore создай документ <b>admins/&lt;UID&gt;</b>.
             </div>
           </div>
         ) : (
           <>
             {/* toolbar */}
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between mt-5">
               <div className="flex items-center gap-2">
                 <input
                   value={q}
@@ -563,7 +570,7 @@ export default function AdminPage() {
 
               <button
                 type="button"
-                className="rounded-full px-5 py-2.5 text-sm font-semibold"
+                className="rounded-full px-5 py-3 text-sm font-semibold"
                 style={{ background: THEME.accent, color: "#0B0B0F" }}
                 onClick={openNew}
               >
@@ -578,82 +585,193 @@ export default function AdminPage() {
               ) : filtered.length === 0 ? (
                 <div className="text-sm opacity-70">Нет товаров</div>
               ) : (
-                <div className="grid gap-3 lg:grid-cols-2">
-                  {filtered.map((p) => (
-                    <div
-                      key={p.id}
-                      className="rounded-3xl border p-4"
-                      style={{
-                        borderColor: THEME.border2,
-                        background: "rgba(255,255,255,0.02)",
-                      }}
-                    >
-                      <div className="flex items-start gap-4">
-                        <div
-                          className="rounded-2xl border overflow-hidden flex-shrink-0"
-                          style={{
-                            width: 110,
-                            height: 110,
-                            borderColor: THEME.border2,
-                            background: "rgba(255,255,255,0.04)",
-                          }}
-                        >
-                          {p.image ? (
-                            <img
-                              src={p.image}
-                              alt=""
-                              style={{
-                                width: "110px",
-                                height: "110px",
-                                objectFit: "cover",
-                                display: "block",
-                              }}
-                            />
-                          ) : (
-                            <div className="h-full w-full flex items-center justify-center text-xs" style={{ color: THEME.muted }}>
-                              No image
+                <>
+                  {/* ✅ МОБИЛЬНЫЕ КАРТОЧКИ (не влияют на sm+) */}
+                  <div className="grid gap-3 sm:hidden">
+                    {filtered.map((p) => (
+                      <div
+                        key={p.id}
+                        className="rounded-2xl border p-5 w-full max-w-full overflow-hidden"
+                        style={{
+                          borderColor: THEME.border2,
+                          background: "rgba(255,255,255,0.02)",
+                        }}
+                      >
+                        {/* верх: картинка + инфо */}
+                        <div className="flex gap-3">
+                          <div
+                            className="rounded-xl border overflow-hidden flex-shrink-0"
+                            style={{
+                              borderColor: THEME.border2,
+                              background: "rgba(255,255,255,0.04)",
+                              width: 88,
+                              height: 88,
+                            }}
+                          >
+                            {p.image ? (
+                              <img
+                                src={p.image}
+                                alt=""
+                                style={{
+                                  width: "100%",
+                                  height: "100%",
+                                  objectFit: "cover",
+                                  display: "block",
+                                }}
+                              />
+                            ) : (
+                              <div
+                                className="h-full w-full flex items-center justify-center text-xs"
+                                style={{ color: THEME.muted }}
+                              >
+                                No image
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-semibold truncate">
+                              {p.brand} — {p.name}
                             </div>
-                          )}
+
+                            <div className="mt-1 text-xs leading-snug" style={{ color: THEME.muted }}>
+                              <span className="flex flex-col ">
+                                <span className="truncate">
+                                  ID: <span style={{ color: THEME.text }}>{p.id}</span>
+                                </span>
+                                <span>
+                                  Цена:{" "}
+                                  <span style={{ color: THEME.text }}>
+                                    {p.price ?? p.basePrice ?? 0}
+                                    {p.currency || "₽"}
+                                  </span>
+                                </span>
+                                <span>
+                                  Объём: <span style={{ color: THEME.text }}>{p.volume ?? p.baseVolume ?? 0}</span>
+                                  ml
+                                </span>
+                              </span>
+                            </div>
+                          </div>
                         </div>
 
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <div
-                                className="text-sm font-semibold"
-                                style={{
-                                  whiteSpace: "nowrap",
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                }}
-                              >
-                                {p.brand} — {p.name}
-                              </div>
+                        {/* описание */}
+                        {p.description ? (
+                          <div
+                            className="mt-3 text-xs leading-relaxed"
+                            style={{
+                              color: THEME.muted,
+                              display: "-webkit-box",
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: "vertical",
+                              overflow: "hidden",
+                            }}
+                          >
+                            {p.description}
+                          </div>
+                        ) : null}
 
-                              <div className="mt-1 text-xs" style={{ color: THEME.muted }}>
-                                ID: <span style={{ color: THEME.text }}>{p.id}</span> ·{" "}
-                                <span style={{ color: THEME.text }}>
-                                  {p.price ?? p.basePrice ?? 0}{p.currency || "₽"}
-                                </span>{" "}
-                                · {p.volume ?? p.baseVolume ?? 0}ml
-                              </div>
+                        {/* кнопка */}
+                        <button
+                          type="button"
+                          className="mt-3 w-full rounded-full border px-4 py-2 text-xs font-medium hover:bg-white/[0.06] transition-colors"
+                          style={{
+                            borderColor: THEME.border2,
+                            color: THEME.text,
+                            background: "rgba(255,255,255,0.03)",
+                          }}
+                          onClick={() => openEdit(p)}
+                        >
+                          Редактировать
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* ✅ ТВОЯ ТЕКУЩАЯ СЕТКА ДЛЯ sm+ (вообще не меняем дизайн) */}
+                  <div className="hidden sm:grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    {filtered.map((p) => (
+                      <div
+                        key={p.id}
+                        className="rounded-2xl border p-4"
+                        style={{
+                          borderColor: THEME.border2,
+                          background: "rgba(255,255,255,0.02)",
+                        }}
+                      >
+                        {/* Основной контент карточки */}
+                        <div className="flex flex-col gap-3">
+                          {/* Первая строка: Изображение + Основная информация + Кнопка */}
+                          <div className="flex flex-col sm:flex-row gap-3">
+                            {/* Изображение - FIXED SIZE */}
+                            <div
+                              className="rounded-xl border overflow-hidden flex-shrink-0"
+                              style={{
+                                borderColor: THEME.border2,
+                                background: "rgba(255,255,255,0.04)",
+                                width: "80px",
+                                height: "80px",
+                              }}
+                            >
+                              {p.image ? (
+                                <img
+                                  src={p.image}
+                                  alt=""
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    objectFit: "cover",
+                                    display: "block",
+                                  }}
+                                />
+                              ) : (
+                                <div
+                                  className="h-full w-full flex items-center justify-center text-xs"
+                                  style={{ color: THEME.muted }}
+                                >
+                                  No image
+                                </div>
+                              )}
                             </div>
 
-                            <div className="flex gap-2 flex-shrink-0">
-                              <button
-                                type="button"
-                                className="rounded-full border px-4 py-2 text-xs hover:bg-white/[0.06]"
-                                style={{ borderColor: THEME.border2, color: THEME.text }}
-                                onClick={() => openEdit(p)}
-                              >
-                                Редактировать
-                              </button>
+                            {/* Основной контент и кнопка */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between items-start gap-3">
+                                <div className="min-w-0 flex-1">
+                                  <div className="text-sm font-semibold truncate">
+                                    {p.brand} — {p.name}
+                                  </div>
+                                  <div className="mt-1 text-xs" style={{ color: THEME.muted }}>
+                                    ID: <span style={{ color: THEME.text }}>{p.id}</span> ·{" "}
+                                    <span style={{ color: THEME.text }}>
+                                      {p.price ?? p.basePrice ?? 0}
+                                      {p.currency || "₽"}
+                                    </span>{" "}
+                                    · {p.volume ?? p.baseVolume ?? 0}ml
+                                  </div>
+                                </div>
+
+                                {/* Кнопка редактировать - всегда в приоритетном месте */}
+                                <button
+                                  type="button"
+                                  className="flex-shrink-0 rounded-full border px-4 py-2 text-xs font-medium hover:bg-white/[0.06] transition-colors"
+                                  style={{
+                                    borderColor: THEME.border2,
+                                    color: THEME.text,
+                                    background: "rgba(255,255,255,0.03)",
+                                  }}
+                                  onClick={() => openEdit(p)}
+                                >
+                                  Редактировать
+                                </button>
+                              </div>
                             </div>
                           </div>
 
-                          {p.description ? (
+                          {/* Описание - под всем остальным контентом */}
+                          {p.description && (
                             <div
-                              className="mt-2 text-xs"
+                              className="text-xs leading-relaxed"
                               style={{
                                 color: THEME.muted,
                                 display: "-webkit-box",
@@ -664,41 +782,12 @@ export default function AdminPage() {
                             >
                               {p.description}
                             </div>
-                          ) : null}
-
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {(p.seasons || []).slice(0, 4).map((s) => (
-                              <span
-                                key={"s_" + p.id + "_" + s}
-                                className="rounded-full border px-3 py-1 text-[11px]"
-                                style={{
-                                  borderColor: THEME.border2,
-                                  background: "rgba(255,255,255,0.03)",
-                                  color: THEME.text,
-                                }}
-                              >
-                                {s}
-                              </span>
-                            ))}
-                            {(p.dayNight || []).slice(0, 4).map((d) => (
-                              <span
-                                key={"d_" + p.id + "_" + d}
-                                className="rounded-full border px-3 py-1 text-[11px]"
-                                style={{
-                                  borderColor: THEME.border2,
-                                  background: "rgba(255,255,255,0.03)",
-                                  color: THEME.text,
-                                }}
-                              >
-                                {d}
-                              </span>
-                            ))}
-                          </div>
+                          )}
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
 
@@ -727,7 +816,10 @@ export default function AdminPage() {
                     <button
                       type="button"
                       className="rounded-full border px-4 py-2 text-sm"
-                      style={{ borderColor: "rgba(255,120,120,0.45)", color: THEME.text }}
+                      style={{
+                        borderColor: "rgba(255,120,120,0.45)",
+                        color: THEME.text,
+                      }}
                       onClick={remove}
                       disabled={saving || uploading || !String(draft.id || "").trim()}
                       title="Удаляет документ"
@@ -751,7 +843,13 @@ export default function AdminPage() {
               <div className="grid gap-4 lg:grid-cols-3">
                 {/* left preview */}
                 <div className="lg:col-span-1">
-                  <div className="rounded-3xl border p-3" style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}>
+                  <div
+                    className="rounded-3xl border p-3"
+                    style={{
+                      borderColor: THEME.border2,
+                      background: "rgba(255,255,255,0.02)",
+                    }}
+                  >
                     <div className="text-xs font-semibold">Превью</div>
                     <div
                       className="mt-3 rounded-2xl border overflow-hidden"
@@ -766,10 +864,18 @@ export default function AdminPage() {
                         <img
                           src={draft.image}
                           alt=""
-                          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                            display: "block",
+                          }}
                         />
                       ) : (
-                        <div className="h-full w-full flex items-center justify-center text-xs" style={{ color: THEME.muted }}>
+                        <div
+                          className="h-full w-full flex items-center justify-center text-xs"
+                          style={{ color: THEME.muted }}
+                        >
                           Нет картинки
                         </div>
                       )}
@@ -798,43 +904,83 @@ export default function AdminPage() {
                 <div className="lg:col-span-2">
                   <div className="grid gap-3 lg:grid-cols-2">
                     <Field label="ID" hint="например p-01 (лучше так)">
-                      <Input value={draft.id} onChange={(e) => setDraft((p) => ({ ...p, id: e.target.value }))} />
+                      <Input
+                        value={draft.id}
+                        onChange={(e) => setDraft((p) => ({ ...p, id: e.target.value }))}
+                      />
                     </Field>
 
                     <Field label="Валюта" hint="по умолчанию ₽">
-                      <Input value={draft.currency} onChange={(e) => setDraft((p) => ({ ...p, currency: e.target.value }))} />
+                      <Input
+                        value={draft.currency}
+                        onChange={(e) => setDraft((p) => ({ ...p, currency: e.target.value }))}
+                      />
                     </Field>
 
                     <Field label="Бренд">
-                      <Input value={draft.brand} onChange={(e) => setDraft((p) => ({ ...p, brand: e.target.value }))} />
+                      <Input
+                        value={draft.brand}
+                        onChange={(e) => setDraft((p) => ({ ...p, brand: e.target.value }))}
+                      />
                     </Field>
 
                     <Field label="Название">
-                      <Input value={draft.name} onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))} />
+                      <Input
+                        value={draft.name}
+                        onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))}
+                      />
                     </Field>
 
                     <div className="lg:col-span-2">
                       <Field label="Описание">
-                        <TextArea value={draft.description} onChange={(e) => setDraft((p) => ({ ...p, description: e.target.value }))} />
+                        <TextArea
+                          value={draft.description}
+                          onChange={(e) =>
+                            setDraft((p) => ({
+                              ...p,
+                              description: e.target.value,
+                            }))
+                          }
+                        />
                       </Field>
                     </div>
 
                     <Field label="Цена (basePrice)">
-                      <Input type="number" value={draft.basePrice} onChange={(e) => setDraft((p) => ({ ...p, basePrice: e.target.value }))} />
+                      <Input
+                        type="number"
+                        value={draft.basePrice}
+                        onChange={(e) => setDraft((p) => ({ ...p, basePrice: e.target.value }))}
+                      />
                     </Field>
 
                     <Field label="Объём (baseVolume, ml)">
-                      <Input type="number" value={draft.baseVolume} onChange={(e) => setDraft((p) => ({ ...p, baseVolume: e.target.value }))} />
+                      <Input
+                        type="number"
+                        value={draft.baseVolume}
+                        onChange={(e) =>
+                          setDraft((p) => ({
+                            ...p,
+                            baseVolume: e.target.value,
+                          }))
+                        }
+                      />
                     </Field>
 
                     <div className="lg:col-span-2">
-                      <div className="mb-2 text-xs" style={{ color: THEME.muted }}>Сезоны</div>
+                      <div className="mb-2 text-xs" style={{ color: THEME.muted }}>
+                        Сезоны
+                      </div>
                       <div className="flex flex-wrap gap-2">
                         {SEASONS.map((s) => (
                           <Chip
                             key={s}
                             active={draft.seasons.includes(s)}
-                            onClick={() => setDraft((p) => ({ ...p, seasons: toggleInArray(p.seasons, s) }))}
+                            onClick={() =>
+                              setDraft((p) => ({
+                                ...p,
+                                seasons: toggleInArray(p.seasons, s),
+                              }))
+                            }
                           >
                             {s}
                           </Chip>
@@ -843,13 +989,20 @@ export default function AdminPage() {
                     </div>
 
                     <div className="lg:col-span-2">
-                      <div className="mb-2 text-xs" style={{ color: THEME.muted }}>Время дня</div>
+                      <div className="mb-2 text-xs" style={{ color: THEME.muted }}>
+                        Время дня
+                      </div>
                       <div className="flex flex-wrap gap-2">
                         {DAYNIGHT.map((d) => (
                           <Chip
                             key={d}
                             active={draft.dayNight.includes(d)}
-                            onClick={() => setDraft((p) => ({ ...p, dayNight: toggleInArray(p.dayNight, d) }))}
+                            onClick={() =>
+                              setDraft((p) => ({
+                                ...p,
+                                dayNight: toggleInArray(p.dayNight, d),
+                              }))
+                            }
                           >
                             {d}
                           </Chip>
@@ -861,37 +1014,82 @@ export default function AdminPage() {
                       <Field label="Теги (через запятую)">
                         <Input
                           value={draft.tagsText}
-                          onChange={(e) => setDraft((p) => ({ ...p, tagsText: e.target.value }))}
+                          onChange={(e) =>
+                            setDraft((p) => ({
+                              ...p,
+                              tagsText: e.target.value,
+                            }))
+                          }
                           placeholder="свежий, цитрус, унисекс"
                         />
                       </Field>
                     </div>
 
                     <Field label="Ноты TOP (через запятую)">
-                      <Input value={draft.notesTopText} onChange={(e) => setDraft((p) => ({ ...p, notesTopText: e.target.value }))} />
+                      <Input
+                        value={draft.notesTopText}
+                        onChange={(e) =>
+                          setDraft((p) => ({
+                            ...p,
+                            notesTopText: e.target.value,
+                          }))
+                        }
+                      />
                     </Field>
 
                     <Field label="Ноты HEART (через запятую)">
-                      <Input value={draft.notesHeartText} onChange={(e) => setDraft((p) => ({ ...p, notesHeartText: e.target.value }))} />
+                      <Input
+                        value={draft.notesHeartText}
+                        onChange={(e) =>
+                          setDraft((p) => ({
+                            ...p,
+                            notesHeartText: e.target.value,
+                          }))
+                        }
+                      />
                     </Field>
 
                     <div className="lg:col-span-2">
                       <Field label="Ноты BASE (через запятую)">
-                        <Input value={draft.notesBaseText} onChange={(e) => setDraft((p) => ({ ...p, notesBaseText: e.target.value }))} />
+                        <Input
+                          value={draft.notesBaseText}
+                          onChange={(e) =>
+                            setDraft((p) => ({
+                              ...p,
+                              notesBaseText: e.target.value,
+                            }))
+                          }
+                        />
                       </Field>
                     </div>
 
                     <Field label="Шлейф (1–5)">
-                      <Input type="number" min="1" max="5" value={draft.sillage} onChange={(e) => setDraft((p) => ({ ...p, sillage: e.target.value }))} />
+                      <Input
+                        type="number"
+                        min="1"
+                        max="5"
+                        value={draft.sillage}
+                        onChange={(e) => setDraft((p) => ({ ...p, sillage: e.target.value }))}
+                      />
                     </Field>
 
                     <Field label="Стойкость (1–5)">
-                      <Input type="number" min="1" max="5" value={draft.longevity} onChange={(e) => setDraft((p) => ({ ...p, longevity: e.target.value }))} />
+                      <Input
+                        type="number"
+                        min="1"
+                        max="5"
+                        value={draft.longevity}
+                        onChange={(e) => setDraft((p) => ({ ...p, longevity: e.target.value }))}
+                      />
                     </Field>
 
                     <div className="lg:col-span-2">
                       <Field label="Картинка (URL)" hint="если не используешь Storage — вставь ссылку">
-                        <Input value={draft.image} onChange={(e) => setDraft((p) => ({ ...p, image: e.target.value }))} placeholder="https://..." />
+                        <Input
+                          value={draft.image}
+                          onChange={(e) => setDraft((p) => ({ ...p, image: e.target.value }))}
+                          placeholder="https://..."
+                        />
                       </Field>
                     </div>
                   </div>

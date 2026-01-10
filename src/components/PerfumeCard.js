@@ -140,7 +140,7 @@ export default function PerfumeCard({
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <button
+        {/* <button
           type="button"
           className="flex items-center justify-between rounded-2xl border px-3 py-2 text-sm transition hover:bg-white/[0.04]"
           style={{ borderColor: THEME.border2, color: THEME.text }}
@@ -153,7 +153,7 @@ export default function PerfumeCard({
             className={"h-4 w-4 transition " + (detailsOpen ? "rotate-180" : "")}
             style={{ color: THEME.muted }}
           />
-        </button>
+        </button> */}
 
         <div
           className="rounded-2xl border px-3 py-2"
@@ -163,13 +163,13 @@ export default function PerfumeCard({
             <div className="text-xs" style={{ color: THEME.muted }}>Цена</div>
             <div className="text-xs" style={{ color: THEME.muted2 }}>{volume} мл</div>
           </div>
-          <div className="mt-1 text-sm font-semibold" style={{ color: THEME.text }}>
+          <div className="mt-1 text-2xl font-semibold" style={{ color: THEME.text }}>
             {computedPrice}{perfume.currency || "₽"}
           </div>
         </div>
       </div>
 
-      {detailsOpen ? (
+      {/* {detailsOpen ? (
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <div
             className="rounded-2xl border px-3 py-2"
@@ -187,22 +187,22 @@ export default function PerfumeCard({
             <div className="mt-1 text-sm" style={{ color: THEME.text }}>{perfume.dayNight.join(" · ")}</div>
           </div>
         </div>
-      ) : null}
+      ) : null} */}
 
-      <div className="mt-4">
+      {/* <div className="mt-4">
         <div className="perfumeCard__desc text-sm" style={{ color: THEME.muted }}>{perfume.description}</div>
-      </div>
+      </div> */}
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-2">
-        <div className="rounded-2xl border px-2 py-1.5" style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}>
+      {/* <div className="mt-4 hidden sm:flex gap-2">
+        <div className="rounded-2xl border px-2 py-1.5 flex-1 flex items-center justify-center flex-col" style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}>
           <div className="text-[10px]" style={{ color: THEME.muted }}>Стойкость</div>
           <div className="mt-1"><Dots value={perfume.longevity} /></div>
         </div>
-        <div className="rounded-2xl border px-2 py-1.5" style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}>
+        <div className="rounded-2xl border px-2 py-1.5 flex-1 flex items-center justify-center flex-col" style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}>
           <div className="text-[10px]" style={{ color: THEME.muted }}>Шлейф</div>
           <div className="mt-1"><Dots value={perfume.sillage} /></div>
         </div>
-      </div> 
+      </div>  */}
 
       <div className="mt-4">
         <div className="text-xs" style={{ color: THEME.muted }}>
