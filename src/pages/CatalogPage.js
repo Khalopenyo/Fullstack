@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 
@@ -54,6 +54,7 @@ useEffect(() => {
   const [seasons, setSeasons] = useState([]);
   const [dayNight, setDayNight] = useState([]);
   const [q, setQ] = useState("");
+  const deferredQ = useDeferredValue(q);
   // По умолчанию — популярные ароматы
   const [sort, setSort] = useState("popular");
 
@@ -71,7 +72,7 @@ useEffect(() => {
     () =>
       computeCatalog({
         perfumes,
-        q,
+        q: deferredQ,
         mustNotes,
         avoidNotes,
         seasons,

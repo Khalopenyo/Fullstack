@@ -1,7 +1,102 @@
 import { scorePerfume } from "./scoring";
 
+function translitRuToLat(input) {
+  const map = {
+    а: "a", б: "b", в: "v", г: "g", д: "d",
+    е: "e", ё: "yo", ж: "zh", з: "z", и: "i",
+    й: "y", к: "k", л: "l", м: "m", н: "n",
+    о: "o", п: "p", р: "r", с: "s", т: "t",
+    у: "u", ф: "f", х: "h", ц: "ts", ч: "ch",
+    ш: "sh", щ: "sch", ъ: "", ы: "y", ь: "",
+    э: "e", ю: "yu", я: "ya",
+  };
+  return String(input || "")
+    .split("")
+    .map((ch) => (map[ch] != null ? map[ch] : ch))
+    .join("");
+}
+
+function translitLatToRu(input) {
+  const s = String(input || "");
+  const pairs = [
+    ["sch", "щ"],
+    ["sh", "ш"],
+    ["ch", "ч"],
+    ["ya", "я"],
+    ["yu", "ю"],
+    ["yo", "ё"],
+    ["zh", "ж"],
+    ["ts", "ц"],
+    ["kh", "х"],
+    ["ye", "е"],
+  ];
+  let out = s;
+  for (const [from, to] of pairs) {
+    out = out.replaceAll(from, to);
+  }
+  const map = {
+    a: "а",
+    b: "б",
+    v: "в",
+    g: "г",
+    d: "д",
+    e: "е",
+    z: "з",
+    i: "и",
+    y: "й",
+    k: "к",
+    l: "л",
+    m: "м",
+    n: "н",
+    o: "о",
+    p: "п",
+    r: "р",
+    s: "с",
+    t: "т",
+    u: "у",
+    f: "ф",
+    h: "х",
+    q: "к",
+    w: "в",
+    x: "кс",
+    j: "дж",
+  };
+  return out
+    .split("")
+    .map((ch) => (map[ch] != null ? map[ch] : ch))
+    .join("");
+}
+
+function normalizeSearch(input) {
+  return String(input || "")
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[^a-z0-9а-я\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isSubsequence(needle, hay) {
+  if (!needle || !hay) return false;
+  let i = 0;
+  for (let j = 0; j < hay.length && i < needle.length; j += 1) {
+    if (hay[j] === needle[i]) i += 1;
+  }
+  return i === needle.length;
+}
+
+function tokenMatches(token, hayToken) {
+  if (!token || !hayToken) return false;
+  if (hayToken.includes(token)) return true;
+  if (token.length >= 3 && isSubsequence(token, hayToken)) return true;
+  return false;
+}
+
 export function computeCatalog({ perfumes, q, mustNotes, avoidNotes, seasons, dayNight, sort }) {
-  const query = (q || "").trim().toLowerCase();
+  const query = normalizeSearch(q);
+  const queryAlt = translitRuToLat(query);
+  const tokens = query ? query.split(" ").filter(Boolean) : [];
+  const altTokens = queryAlt ? queryAlt.split(" ").filter(Boolean) : [];
 
   const raw = perfumes
     .map((p) => ({ perfume: p, score: scorePerfume(p, mustNotes, avoidNotes, seasons, dayNight) }))
@@ -17,9 +112,41 @@ export function computeCatalog({ perfumes, q, mustNotes, avoidNotes, seasons, da
         ...perfume.notes.heart,
         ...perfume.notes.base,
       ]
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(query);
+        .join(" ");
+      const hayNorm = normalizeSearch(hay);
+      const hayAlt = translitRuToLat(hayNorm);
+      const hayRu = translitLatToRu(hayNorm);
+      const hayTokens = hayNorm.split(" ").filter(Boolean);
+      const hayAltTokens = hayAlt.split(" ").filter(Boolean);
+      const hayRuTokens = hayRu.split(" ").filter(Boolean);
+
+      if (!tokens.length) return true;
+      const tokensOk = tokens.every((t) => {
+        return (
+          hayNorm.includes(t) ||
+          hayAlt.includes(t) ||
+          hayRu.includes(t) ||
+          hayTokens.some((h) => tokenMatches(t, h)) ||
+          hayAltTokens.some((h) => tokenMatches(t, h)) ||
+          hayRuTokens.some((h) => tokenMatches(t, h))
+        );
+      });
+      if (tokensOk) return true;
+
+      if (altTokens.length) {
+        const altOk = altTokens.every((t) => {
+          return (
+            hayNorm.includes(t) ||
+            hayAlt.includes(t) ||
+            hayRu.includes(t) ||
+            hayTokens.some((h) => tokenMatches(t, h)) ||
+            hayAltTokens.some((h) => tokenMatches(t, h)) ||
+            hayRuTokens.some((h) => tokenMatches(t, h))
+          );
+        });
+        if (altOk) return true;
+      }
+      return false;
     });
 
   const minScore = mustNotes.length ? 1 : -999;

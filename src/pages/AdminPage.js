@@ -205,6 +205,7 @@ export default function AdminPage() {
   const [items, setItems] = React.useState([]);
   const [diag, setDiag] = React.useState(null);
   const [q, setQ] = React.useState("");
+  const [visibleCount, setVisibleCount] = React.useState(10);
 
   const [editorOpen, setEditorOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -248,6 +249,10 @@ export default function AdminPage() {
       return hay.includes(query);
     });
   }, [items, q]);
+
+  React.useEffect(() => {
+    setVisibleCount(10);
+  }, [q, items]);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -588,7 +593,7 @@ export default function AdminPage() {
                 <>
                   {/* ✅ МОБИЛЬНЫЕ КАРТОЧКИ (не влияют на sm+) */}
                   <div className="grid gap-3 sm:hidden">
-                    {filtered.map((p) => (
+                    {filtered.slice(0, visibleCount).map((p) => (
                       <div
                         key={p.id}
                         className="rounded-2xl border p-5 w-full max-w-full overflow-hidden"
@@ -690,7 +695,7 @@ export default function AdminPage() {
 
                   {/* ✅ ТВОЯ ТЕКУЩАЯ СЕТКА ДЛЯ sm+ (вообще не меняем дизайн) */}
                   <div className="hidden sm:grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                    {filtered.map((p) => (
+                    {filtered.slice(0, visibleCount).map((p) => (
                       <div
                         key={p.id}
                         className="rounded-2xl border p-4"
@@ -791,6 +796,19 @@ export default function AdminPage() {
               )}
             </div>
 
+            {filtered.length > visibleCount ? (
+              <div className="mt-4 flex justify-center">
+                <button
+                  type="button"
+                  className="rounded-full border px-5 py-2.5 text-sm hover:bg-white/[0.06]"
+                  style={{ borderColor: THEME.border2, color: THEME.text }}
+                  onClick={() => setVisibleCount((v) => v + 10)}
+                >
+                  Показать ещё
+                </button>
+              </div>
+            ) : null}
+
             {/* modal editor */}
             <EditorModal
               open={editorOpen}
@@ -799,7 +817,7 @@ export default function AdminPage() {
               footer={
                 <div className="flex items-center justify-between gap-3">
                   <div className="text-xs" style={{ color: THEME.muted }}>
-                    {saving ? "Сохранение..." : "Поля сохраняются в Firestore (perfumes/<id>)"}
+                    {saving ? "Сохранение..." : ""}
                   </div>
 
                   <div className="flex gap-2">

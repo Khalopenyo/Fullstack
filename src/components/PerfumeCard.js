@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { ChevronDown, Heart } from "lucide-react";
+import { ChevronDown, Heart, Star } from "lucide-react";
 import { THEME } from "../data/theme";
 import SafeImage from "./SafeImage";
 import { priceForVolume } from "../lib/scoring";
@@ -78,6 +78,8 @@ export default function PerfumeCard({
     score >= 10 ? "Точное попадание" : score >= 6 ? "Хорошо подходит" : score >= 3 ? "Похоже" : "Слабое совпадение";
 
   const computedPrice = priceForVolume(perfume.price, volume, perfume.baseVolume);
+  const reviewCount = Number(perfume.reviewCount || 0);
+  const reviewAvg = Number(perfume.reviewAvg || 0);
 
   return (
     <motion.div
@@ -118,6 +120,14 @@ export default function PerfumeCard({
             <div className="mt-1 truncate text-sm" style={{ color: THEME.muted }}>
               {perfume.family}
             </div>
+
+            {reviewCount ? (
+              <div className="mt-1 flex items-center gap-2 text-[11px]" style={{ color: THEME.muted2 }}>
+                <Star className="h-3.5 w-3.5" style={{ color: THEME.accent }} />
+                <span style={{ color: THEME.text }}>{reviewAvg.toFixed(1)}</span>
+                <span>({reviewCount})</span>
+              </div>
+            ) : null}
 
             <div className="mt-2">
               <VolumeSelect value={volume} onChange={onVolumeChange} size="compact" />
