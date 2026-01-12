@@ -2,6 +2,8 @@ import React, { useMemo, useState } from "react";
 import { X, Copy, MessageCircle, Send, Instagram } from "lucide-react";
 import { THEME } from "../data/theme";
 import { SELLER_CONTACTS } from "../data/sellerContacts";
+import { useAuth } from "../state/auth";
+import { createOrder } from "../services/ordersRepo";
 
 function formatLine(item) {
   const p = item.perfume || {};
@@ -29,13 +31,19 @@ function buildMessage(items, total) {
 
 export default function CheckoutModal({ open, items, total, onClose }) {
   const [copied, setCopied] = useState(false);
+  const { user } = useAuth();
 
   const message = useMemo(() => buildMessage(items || [], total || 0), [items, total]);
   const encoded = useMemo(() => encodeURIComponent(message), [message]);
 
   if (!open) return null;
 
-  const openWithCopy = async (url) => {
+  const openWithCopy = async (url, channel) => {
+    try {
+      await createOrder({ user, items, total, channel });
+    } catch {
+      // не ломаем UX, если запись заказа не удалась
+    }
     try {
       await navigator.clipboard.writeText(message);
       setCopied(true);
@@ -123,7 +131,7 @@ export default function CheckoutModal({ open, items, total, onClose }) {
             className="flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left hover:bg-white/[0.06] disabled:opacity-40"
             style={{ borderColor: THEME.border2 }}
             disabled={!wa}
-            onClick={() => openWithCopy(wa)}
+            onClick={() => openWithCopy(wa, "wa")}
           >
             <div className="flex items-center gap-3">
               <MessageCircle size={20} />
@@ -142,7 +150,7 @@ export default function CheckoutModal({ open, items, total, onClose }) {
             className="flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left hover:bg-white/[0.06] disabled:opacity-40"
             style={{ borderColor: THEME.border2 }}
             disabled={!tg}
-            onClick={() => openWithCopy(tg)}
+            onClick={() => openWithCopy(tg, "tg")}
           >
             <div className="flex items-center gap-3">
               <Send size={20} />
@@ -161,7 +169,7 @@ export default function CheckoutModal({ open, items, total, onClose }) {
             className="flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left hover:bg-white/[0.06] disabled:opacity-40"
             style={{ borderColor: THEME.border2 }}
             disabled={!ig}
-            onClick={() => openWithCopy(ig)}
+            onClick={() => openWithCopy(ig, "ig")}
           >
             <div className="flex items-center gap-3">
               <Instagram size={20} />

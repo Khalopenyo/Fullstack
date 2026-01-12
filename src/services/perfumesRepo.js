@@ -82,6 +82,10 @@ export function normalizePerfume(raw, id, issues = []) {
   const longevity = clampInt(raw.longevity ?? raw.duration, 1, 5);
 
   const image = asString(raw.image, "").trim();
+  const searchNameRu = asString(raw.searchNameRu, "").trim();
+  const isHit = typeof raw.isHit === "boolean" ? raw.isHit : false;
+  const orderCount = asNumber(raw.orderCount ?? 0, 0);
+  const inStock = typeof raw.inStock === "boolean" ? raw.inStock : true;
 
   // Валюта (в статическом датасете она есть, но в Firestore могла не быть)
   const currency = asString(raw.currency, "₽").trim() || "₽";
@@ -108,6 +112,10 @@ export function normalizePerfume(raw, id, issues = []) {
     sillage,
     longevity,
     image,
+    searchNameRu,
+    isHit,
+    orderCount,
+    inStock,
 
     currency,
     popularity,

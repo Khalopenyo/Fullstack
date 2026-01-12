@@ -27,9 +27,13 @@ export default function CatalogHeader({
   q,
   onChangeQ,
   onClearQ,
+  suggestions,
+  onSelectSuggestion,
 }) {
 
-  const [searchActive , setSearchActive] = React.useState(false)
+  const [searchActive , setSearchActive] = React.useState(false);
+  const [suggestionsOpen, setSuggestionsOpen] = React.useState(false);
+  const showSuggestions = searchActive && suggestionsOpen && Array.isArray(suggestions) && suggestions.length > 0;
 
   return (
     <header
@@ -123,6 +127,8 @@ export default function CatalogHeader({
             <input
               value={q}
               onChange={(e) => onChangeQ(e.target.value)}
+              onFocus={() => setSuggestionsOpen(true)}
+              onBlur={() => setSuggestionsOpen(false)}
               className="w-full rounded-2xl border bg-transparent px-11 py-3 text-sm outline-none focus:ring-2 focus:ring-[rgba(127,122,73,0.40)]"
               style={{ borderColor: THEME.border2, color: THEME.text }}
               placeholder="Поиск по бренду, названию, нотам..."
@@ -136,6 +142,33 @@ export default function CatalogHeader({
               >
                 <X className="h-4 w-4" style={{ color: THEME.muted }} />
               </button>
+            ) : null}
+
+            {showSuggestions ? (
+              <div
+                className="absolute left-0 right-0 top-full z-20 mt-2 overflow-hidden rounded-2xl border"
+                style={{ borderColor: THEME.border2, background: THEME.surface2 }}
+                onMouseDown={(e) => e.preventDefault()}
+              >
+                {suggestions.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left text-sm hover:bg-white/[0.06]"
+                    style={{ color: THEME.text }}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      onSelectSuggestion?.(s);
+                      setSuggestionsOpen(false);
+                    }}
+                  >
+                    <span className="truncate">{s.name}</span>
+                    <span className="shrink-0 text-xs" style={{ color: THEME.muted }}>
+                      {s.brand}
+                    </span>
+                  </button>
+                ))}
+              </div>
             ) : null}
           </div>
         </div>} 

@@ -55,6 +55,81 @@ useEffect(() => {
   const [dayNight, setDayNight] = useState([]);
   const [q, setQ] = useState("");
   const deferredQ = useDeferredValue(q);
+
+  const searchSuggestions = useMemo(() => {
+    const normalizeSearch = (input) =>
+      String(input || "")
+        .toLowerCase()
+        .replace(/ё/g, "е")
+        .replace(/[^a-z0-9а-я\s]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    const levenshtein = (a, b) => {
+      const s = String(a || "");
+      const t = String(b || "");
+      const n = s.length;
+      const m = t.length;
+      if (!n) return m;
+      if (!m) return n;
+      const dp = Array.from({ length: n + 1 }, () => new Array(m + 1));
+      for (let i = 0; i <= n; i += 1) dp[i][0] = i;
+      for (let j = 0; j <= m; j += 1) dp[0][j] = j;
+      for (let i = 1; i <= n; i += 1) {
+        for (let j = 1; j <= m; j += 1) {
+          const cost = s[i - 1] === t[j - 1] ? 0 : 1;
+          dp[i][j] = Math.min(
+            dp[i - 1][j] + 1,
+            dp[i][j - 1] + 1,
+            dp[i - 1][j - 1] + cost
+          );
+        }
+      }
+      return dp[n][m];
+    };
+
+    const tokenMatches = (token, hayToken) => {
+      if (!token || !hayToken) return false;
+      if (hayToken.includes(token)) return true;
+      if (token.length >= 3) {
+        let i = 0;
+        for (let j = 0; j < hayToken.length && i < token.length; j += 1) {
+          if (hayToken[j] === token[i]) i += 1;
+        }
+        if (i === token.length) return true;
+      }
+      if (token.length >= 4) {
+        const maxEdits = token.length <= 6 ? 1 : 2;
+        if (levenshtein(token, hayToken) <= maxEdits) return true;
+      }
+      return false;
+    };
+
+    const matchTokens = (tokens, text) => {
+      if (!tokens.length) return false;
+      const hay = normalizeSearch(text);
+      if (!hay) return false;
+      const words = hay.split(" ").filter(Boolean);
+      return tokens.every((t) => words.some((w) => tokenMatches(t, w)));
+    };
+
+    const query = normalizeSearch(q);
+    if (query.length < 2) return [];
+    const tokens = query.split(/\s+/).filter(Boolean);
+    const matches = perfumes
+      .map((p) => {
+        const name = String(p.name || "");
+        const brand = String(p.brand || "");
+        const nameHit = matchTokens(tokens, name);
+        const brandHit = matchTokens(tokens, brand);
+        const score = (nameHit ? 2 : 0) + (brandHit ? 1 : 0);
+        if (!score) return null;
+        return { id: p.id, name: p.name || "", brand: p.brand || "", score };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+    return matches.slice(0, 5);
+  }, [perfumes, q]);
   // По умолчанию — популярные ароматы
   const [sort, setSort] = useState("popular");
 
@@ -63,6 +138,16 @@ useEffect(() => {
   // Пагинация (чтобы каталог не превращался в бесконечную колонну)
   const PAGE_SIZE = 6; // поменяй на 8/16/24 если нужно
   const [page, setPage] = useState(1);
+
+  const autoHitIds = useMemo(() => {
+    const withCounts = (perfumes || [])
+      .map((p) => ({ id: p.id, count: Number(p.orderCount || 0), isHit: Boolean(p.isHit) }))
+      .filter((p) => p.count > 0)
+      .sort((a, b) => b.count - a.count);
+    const top = withCounts.slice(0, 5).map((p) => p.id);
+    const manual = (perfumes || []).filter((p) => p.isHit).map((p) => p.id);
+    return new Set([...top, ...manual]);
+  }, [perfumes]);
 
   // модалка подробностей (можешь заменить на navigate(`/perfumes/${id}`), если захочешь)
   const [activePerfume, setActivePerfume] = useState(null);
@@ -78,8 +163,9 @@ useEffect(() => {
         seasons,
         dayNight,
         sort,
+        hitIds: autoHitIds,
       }),
-    [perfumes, q, mustNotes, avoidNotes, seasons, dayNight, sort]
+    [perfumes, deferredQ, mustNotes, avoidNotes, seasons, dayNight, sort, autoHitIds]
   );
 
   // если поменяли фильтры/поиск/сортировку — возвращаемся на 1 страницу
@@ -154,6 +240,8 @@ useEffect(() => {
         q={q}
         onChangeQ={setQ}
         onClearQ={() => setQ("")}
+        suggestions={searchSuggestions}
+        onSelectSuggestion={(s) => setQ([s.name, s.brand].filter(Boolean).join(" "))}
       />
 
       {/*
@@ -218,11 +306,11 @@ useEffect(() => {
     ) : null} */}
 
     <div className="mt-5 grid gap-4 lg:grid-cols-2">
-      <AnimatePresence>
+      <AnimatePresence mode="wait" initial={false}>
         {pagedItems.map(({ perfume, score }) => (
           <PerfumeCard
             key={perfume.id}
-            perfume={perfume}
+            perfume={{ ...perfume, isHit: perfume.isHit || autoHitIds.has(perfume.id) }}
             score={score}
             liked={favorites.includes(perfume.id)}
             volume={getVolume(perfume.id)}

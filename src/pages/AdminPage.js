@@ -215,7 +215,10 @@ export default function AdminPage() {
     id: "",
     brand: "",
     name: "",
+    searchNameRu: "",
     description: "",
+    inStock: true,
+    isHit: false,
     basePrice: 0,
     baseVolume: 50,
     seasons: [],
@@ -306,7 +309,10 @@ export default function AdminPage() {
       id,
       brand: "",
       name: "",
+      searchNameRu: "",
       description: "",
+      inStock: true,
+      isHit: false,
       basePrice: 0,
       baseVolume: 50,
       seasons: [],
@@ -328,7 +334,10 @@ export default function AdminPage() {
       id: p.id || "",
       brand: p.brand || "",
       name: p.name || "",
+      searchNameRu: p.searchNameRu || "",
       description: p.description || "",
+      inStock: typeof p.inStock === "boolean" ? p.inStock : true,
+      isHit: typeof p.isHit === "boolean" ? p.isHit : false,
       basePrice: Number(p.basePrice ?? p.price ?? 0),
       baseVolume: Number(p.baseVolume ?? p.volume ?? 50),
       seasons: Array.isArray(p.seasons) ? p.seasons : [],
@@ -354,7 +363,10 @@ export default function AdminPage() {
     const payload = {
       brand: draft.brand.trim(),
       name: draft.name.trim(),
+      searchNameRu: String(draft.searchNameRu || "").trim(),
       description: String(draft.description || "").trim(),
+      inStock: Boolean(draft.inStock),
+      isHit: Boolean(draft.isHit),
 
       basePrice: Number(draft.basePrice || 0),
       baseVolume: clampInt(draft.baseVolume, 10, 200, 50),
@@ -420,7 +432,9 @@ export default function AdminPage() {
       const safeName = String(file.name || "image").replace(/[^\w.\-]+/g, "_");
       const path = `perfumes/${id}/${Date.now()}_${safeName}`;
       const r = ref(storage, path);
-      await uploadBytes(r, file);
+      await uploadBytes(r, file, {
+        cacheControl: "public,max-age=31536000,immutable",
+      });
       const url = await getDownloadURL(r);
       setDraft((p) => ({ ...p, image: url }));
     } catch (e) {
@@ -947,6 +961,46 @@ export default function AdminPage() {
                         value={draft.name}
                         onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))}
                       />
+                    </Field>
+
+                    <Field label="Название (RU, для поиска)">
+                      <Input
+                        value={draft.searchNameRu}
+                        onChange={(e) => setDraft((p) => ({ ...p, searchNameRu: e.target.value }))}
+                        placeholder="русское название аромата"
+                      />
+                    </Field>
+
+                    <Field label="В наличии">
+                      <select
+                        value={draft.inStock ? "yes" : "no"}
+                        onChange={(e) => setDraft((p) => ({ ...p, inStock: e.target.value === "yes" }))}
+                        className="w-full rounded-2xl border px-4 py-3 text-sm outline-none"
+                        style={{
+                          borderColor: THEME.border2,
+                          background: "rgba(255,255,255,0.03)",
+                          color: THEME.text,
+                        }}
+                      >
+                        <option value="yes">Есть в наличии</option>
+                        <option value="no">Нет в наличии</option>
+                      </select>
+                    </Field>
+
+                    <Field label="Хит продаж">
+                      <select
+                        value={draft.isHit ? "yes" : "no"}
+                        onChange={(e) => setDraft((p) => ({ ...p, isHit: e.target.value === "yes" }))}
+                        className="w-full rounded-2xl border px-4 py-3 text-sm outline-none"
+                        style={{
+                          borderColor: THEME.border2,
+                          background: "rgba(255,255,255,0.03)",
+                          color: THEME.text,
+                        }}
+                      >
+                        <option value="no">Нет</option>
+                        <option value="yes">Да</option>
+                      </select>
                     </Field>
 
                     <div className="lg:col-span-2">

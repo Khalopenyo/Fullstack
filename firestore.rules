@@ -9,6 +9,10 @@ service cloud.firestore {
       return isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).changedKeys();
+    }
+
     match /admins/{uid} {
       allow read: if isAdmin();
       allow write: if false;
@@ -17,6 +21,7 @@ service cloud.firestore {
     match /perfumes/{perfumeId} {
       allow read: if true;
       allow create, update, delete: if isAdmin();
+      allow update: if isSignedIn() && changedKeys().hasOnly(["orderCount"]);
 
       match /reviews/{reviewId} {
         allow read: if true;
@@ -48,6 +53,14 @@ service cloud.firestore {
     match /stat_events/{id} {
       allow create: if isSignedIn();
       allow read, update, delete: if false;
+    }
+
+    match /orders/{orderId} {
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.items is list
+        && request.resource.data.total is number;
+      allow read, update, delete: if isAdmin();
     }
   }
 }

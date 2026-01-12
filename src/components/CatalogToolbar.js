@@ -31,6 +31,7 @@ export default function CatalogToolbar({
                 colorScheme: "dark",
               }}
             >
+              <option value="hits">Хиты продаж</option>
               <option value="popular">Популярные</option>
               <option value="match">По совпадению</option>
               <option value="price_asc">Цена: ↑</option>
@@ -69,6 +70,7 @@ export default function CatalogToolbar({
           }}
           aria-label="Сортировка"
         >
+          <option value="hits">Хиты продаж</option>
           <option value="popular">Популярные</option>
           <option value="popular_month">Популярные (месяц)</option>
           <option value="match">По совпадению</option>

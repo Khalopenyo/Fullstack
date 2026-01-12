@@ -9,7 +9,9 @@ export async function uploadPerfumeImage(perfumeId, file) {
   const path = `perfumes/${perfumeId}/${Date.now()}_${safeName}`;
 
   const r = ref(storage, path);
-  await uploadBytes(r, file);
+  await uploadBytes(r, file, {
+    cacheControl: "public,max-age=31536000,immutable",
+  });
   const url = await getDownloadURL(r);
 
   return { url, path };

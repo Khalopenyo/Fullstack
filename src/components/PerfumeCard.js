@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { ChevronDown, Heart, Star } from "lucide-react";
+import { ChevronDown, Flame, Heart, Star } from "lucide-react";
 import { THEME } from "../data/theme";
 import SafeImage from "./SafeImage";
 import { priceForVolume } from "../lib/scoring";
@@ -80,6 +80,8 @@ export default function PerfumeCard({
   const computedPrice = priceForVolume(perfume.price, volume, perfume.baseVolume);
   const reviewCount = Number(perfume.reviewCount || 0);
   const reviewAvg = Number(perfume.reviewAvg || 0);
+  const inStock = perfume.inStock !== false;
+  const isHit = Boolean(perfume.isHit);
 
   return (
     <motion.div
@@ -119,6 +121,27 @@ export default function PerfumeCard({
             </div>
             <div className="mt-1 truncate text-sm" style={{ color: THEME.muted }}>
               {perfume.family}
+            </div>
+
+            <div className="mt-1 flex items-center gap-2">
+              <div
+                className="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px]"
+                style={{
+                  borderColor: inStock ? "rgba(120,220,160,0.35)" : "rgba(255,120,120,0.35)",
+                  background: inStock ? "rgba(120,220,160,0.12)" : "rgba(255,120,120,0.08)",
+                  color: THEME.text,
+                }}
+              >
+                {inStock ? "В наличии" : "Нет в наличии"}
+              </div>
+              {isHit ? (
+                <div
+                  className="inline-flex items-center rounded-full border px-2 py-0.5"
+                  style={{ borderColor: "rgba(255,205,120,0.45)", background: "rgba(255,205,120,0.14)" }}
+                >
+                  <Flame className="h-3 w-3" style={{ color: "#F4B462" }} />
+                </div>
+              ) : null}
             </div>
 
             {reviewCount ? (

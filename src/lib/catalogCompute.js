@@ -85,10 +85,37 @@ function isSubsequence(needle, hay) {
   return i === needle.length;
 }
 
+function levenshtein(a, b) {
+  const s = String(a || "");
+  const t = String(b || "");
+  const n = s.length;
+  const m = t.length;
+  if (!n) return m;
+  if (!m) return n;
+  const dp = Array.from({ length: n + 1 }, () => new Array(m + 1));
+  for (let i = 0; i <= n; i += 1) dp[i][0] = i;
+  for (let j = 0; j <= m; j += 1) dp[0][j] = j;
+  for (let i = 1; i <= n; i += 1) {
+    for (let j = 1; j <= m; j += 1) {
+      const cost = s[i - 1] === t[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + cost
+      );
+    }
+  }
+  return dp[n][m];
+}
+
 function tokenMatches(token, hayToken) {
   if (!token || !hayToken) return false;
   if (hayToken.includes(token)) return true;
   if (token.length >= 3 && isSubsequence(token, hayToken)) return true;
+  if (token.length >= 4) {
+    const maxEdits = token.length <= 6 ? 1 : 2;
+    if (levenshtein(token, hayToken) <= maxEdits) return true;
+  }
   return false;
 }
 
@@ -105,6 +132,7 @@ export function computeCatalog({ perfumes, q, mustNotes, avoidNotes, seasons, da
       const hay = [
         perfume.brand,
         perfume.name,
+        perfume.searchNameRu,
         perfume.family,
         perfume.description,
         ...(perfume.tags || []),
@@ -153,6 +181,10 @@ export function computeCatalog({ perfumes, q, mustNotes, avoidNotes, seasons, da
   const filtered = raw.filter((x) => x.score >= minScore);
 
   const sorted = [...filtered].sort((a, b) => {
+    if (sort === "hits") {
+      const d = (Number(b.perfume.orderCount || 0) - Number(a.perfume.orderCount || 0));
+      return d !== 0 ? d : b.score - a.score;
+    }
     if (sort === "match") return b.score - a.score;
     if (sort === "popular") {
       const d = (b.perfume.popularity || 0) - (a.perfume.popularity || 0);
