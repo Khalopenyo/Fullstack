@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { ChevronDown, Flame, Heart, Star } from "lucide-react";
+import { plural } from "../lib/utils";
 import { THEME } from "../data/theme";
+import { MIX_OPTIONS, VOLUME_OPTIONS } from "../data/perfumes";
 import SafeImage from "./SafeImage";
 import { priceForVolume } from "../lib/scoring";
 import { clamp } from "../lib/utils";
@@ -22,10 +24,26 @@ function Dots({ value }) {
   );
 }
 
+function RatingStars({ value, size = 14 }) {
+  const v = Math.round(Number(value) || 0);
+  return (
+    <div className="flex items-center gap-1">
+      {Array.from({ length: 5 }).map((_, i) => {
+        const on = i + 1 <= v;
+        return (
+          <Star
+            key={i}
+            className={on ? "fill-current" : ""}
+            style={{ color: on ? THEME.accent : THEME.muted2, width: size, height: size }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 function VolumeSelect({ value, onChange, size }) {
   const isCompact = size === "compact";
-
-  const VOLUME_OPTIONS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 
   return (
     <div className={"flex items-center gap-2 " + (isCompact ? "" : "flex-wrap")}>
@@ -52,11 +70,35 @@ function VolumeSelect({ value, onChange, size }) {
   );
 }
 
+function MixSelect({ value, onChange }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="text-xs" style={{ color: THEME.muted }}>
+        Пропорции
+      </div>
+      <select
+        value={value}
+        onChange={(e) => onChange?.(e.target.value)}
+        className="rounded-2xl border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[rgba(127,122,73,0.40)]"
+        style={{ borderColor: THEME.border2, color: THEME.text, background: "#0C0C10", colorScheme: "dark" }}
+        aria-label="Выбор пропорций"
+      >
+        {MIX_OPTIONS.map((v) => (
+          <option key={v} value={v}>
+            {v}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 export default function PerfumeCard({
   perfume,
   score,
   liked,
   onLike,
+  reviewSummary,
 
   // НОВОЕ:
   onDetails,
@@ -66,7 +108,9 @@ export default function PerfumeCard({
   onOpen,
 
   volume,
+  mix,
   onVolumeChange,
+  onMixChange,
 }) {
   const [detailsOpen, setDetailsOpen] = useState(false);
 
@@ -77,9 +121,11 @@ export default function PerfumeCard({
   const scoreLabel =
     score >= 10 ? "Точное попадание" : score >= 6 ? "Хорошо подходит" : score >= 3 ? "Похоже" : "Слабое совпадение";
 
-  const computedPrice = priceForVolume(perfume.price, volume, perfume.baseVolume);
-  const reviewCount = Number(perfume.reviewCount || 0);
-  const reviewAvg = Number(perfume.reviewAvg || 0);
+  const computedPrice = priceForVolume(perfume.price, volume, perfume.baseVolume, mix);
+  const summaryCount = Number(reviewSummary?.count ?? 0);
+  const summaryAvg = Number(reviewSummary?.avg ?? 0);
+  const reviewCount = summaryCount || Number(perfume.ratingCount ?? perfume.reviewCount ?? 0);
+  const reviewAvg = summaryCount ? summaryAvg : Number(perfume.ratingAvg ?? perfume.reviewAvg ?? 0);
   const inStock = perfume.inStock !== false;
   const isHit = Boolean(perfume.isHit);
 
@@ -144,16 +190,23 @@ export default function PerfumeCard({
               ) : null}
             </div>
 
-            {reviewCount ? (
-              <div className="mt-1 flex items-center gap-2 text-[11px]" style={{ color: THEME.muted2 }}>
-                <Star className="h-3.5 w-3.5" style={{ color: THEME.accent }} />
-                <span style={{ color: THEME.text }}>{reviewAvg.toFixed(1)}</span>
-                <span>({reviewCount})</span>
-              </div>
-            ) : null}
+            <div className="mt-2 flex items-center gap-2 text-xs" style={{ color: THEME.muted }}>
+              {reviewCount > 0 ? (
+                <>
+                  <RatingStars value={reviewAvg} size={14} />
+                  <span style={{ color: THEME.text }}>{reviewAvg.toFixed(1)}</span>
+                  <span>
+                    ({reviewCount} {plural(reviewCount, "отзыв", "отзыва", "отзывов")})
+                  </span>
+                </>
+              ) : (
+                <span>Нет отзывов</span>
+              )}
+            </div>
 
-            <div className="mt-2">
+            <div className="mt-2 flex flex-wrap items-center gap-3">
               <VolumeSelect value={volume} onChange={onVolumeChange} size="compact" />
+              <MixSelect value={mix} onChange={onMixChange} />
             </div>
           </div>
         </div>

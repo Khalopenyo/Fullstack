@@ -1,8 +1,9 @@
 import React, { useMemo } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { THEME } from "../data/theme";
-import { VOLUME_OPTIONS } from "../data/perfumes";
+import { MIX_OPTIONS, VOLUME_OPTIONS } from "../data/perfumes";
 import { priceForVolume } from "../lib/scoring";
+import { clearJsonLd, setCanonical, setJsonLd, setMeta, setOpenGraphImage } from "../lib/seo";
 import { useShop } from "../state/shop";
 import SafeImage from "../components/SafeImage";
 
@@ -14,10 +15,43 @@ export default function PerfumePage() {
 
   const perfume = useMemo(() => (id ? perfumesById[id] : null), [id, perfumesById]);
   const [volume, setVolume] = React.useState(50);
+  const [mix, setMix] = React.useState("60/40");
 
   React.useEffect(() => {
     if (perfume) setVolume(Number(perfume.baseVolume) || 50);
   }, [perfume]);
+
+  React.useEffect(() => {
+    if (!perfume) return;
+    const title = `${perfume.brand} — ${perfume.name} | Bakhur`;
+    const desc =
+      perfume.description ||
+      `Аромат ${perfume.brand} ${perfume.name}. Масляные духи с подбором по нотам, сезонам и времени дня.`;
+    setMeta({ title, description: desc });
+    setCanonical(window.location.origin + `/perfumes/${perfume.id}`);
+    setOpenGraphImage(perfume.image || (window.location.origin + "/logo192.png"));
+
+    const productLd = {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      name: `${perfume.brand} ${perfume.name}`,
+      description: desc,
+      image: perfume.image ? [perfume.image] : undefined,
+      sku: perfume.id,
+      brand: {
+        "@type": "Brand",
+        name: perfume.brand || "Bakhur",
+      },
+      offers: {
+        "@type": "Offer",
+        price: price,
+        priceCurrency: perfume.currency || "RUB",
+        availability: perfume.inStock === false ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
+      },
+    };
+    setJsonLd("jsonld-product", productLd);
+    return () => clearJsonLd("jsonld-product");
+  }, [perfume, price]);
 
   if (loadingPerfumes && !perfume) {
     return (
@@ -46,7 +80,7 @@ export default function PerfumePage() {
   }
 
   const liked = favorites.includes(perfume.id);
-  const price = priceForVolume(perfume.basePrice ?? perfume.price, volume, perfume.baseVolume);
+  const price = priceForVolume(perfume.basePrice ?? perfume.price, volume, perfume.baseVolume, mix);
 
   return (
     <div className="min-h-screen" style={{ background: THEME.bg, color: THEME.text }}>
@@ -94,6 +128,24 @@ export default function PerfumePage() {
                 </select>
               </div>
 
+              <div className="mt-3">
+                <div className="text-xs" style={{ color: THEME.muted2 }}>
+                  Пропорции
+                </div>
+                <select
+                  value={mix}
+                  onChange={(e) => setMix(e.target.value)}
+                  className="mt-1 w-full rounded-2xl border px-3 py-3 text-sm"
+                  style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.03)", color: THEME.text }}
+                >
+                  {MIX_OPTIONS.map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="mt-4 rounded-2xl border px-4 py-3" style={{ borderColor: THEME.border2 }}>
                 <div className="text-xs" style={{ color: THEME.muted2 }}>
                   Цена
@@ -107,8 +159,7 @@ export default function PerfumePage() {
                   className="flex-1 rounded-full px-5 py-3 text-sm font-semibold"
                   style={{ background: THEME.accent, color: "#0B0B0F" }}
                   onClick={() => {
-                    addToCart(perfume.id, volume, 1);
-                    navigate("/cart");
+                    addToCart(perfume.id, volume, 1, mix);
                   }}
                 >
                   В корзину

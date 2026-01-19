@@ -11,8 +11,10 @@ import { CATALOG_PRESETS } from "../data/catalogPresets";
 
 import { buildAllNotes, buildDefaultVolumeById } from "../lib/catalog";
 import { computeCatalog } from "../lib/catalogCompute";
+import { setCanonical, setMeta, setOpenGraphImage } from "../lib/seo";
 
 import { logStatEvent } from "../services/statsRepo";
+import { computeReviewSummary } from "../services/reviewsRepo";
 
 
 import PerfumeCard from "../components/PerfumeCard";
@@ -37,16 +39,30 @@ export default function CatalogPage() {
   const allNotes = useMemo(() => buildAllNotes(perfumes, ALL_NOTES_GROUPS), [perfumes]);
 
 const [volumeById, setVolumeById] = useState({});
+const [mixById, setMixById] = useState({});
 
 useEffect(() => {
   setVolumeById(buildDefaultVolumeById(perfumes));
 }, [perfumes]);
 
+useEffect(() => {
+  setMeta({
+    title: "Bakhur — каталог масляных ароматов",
+    description: "Каталог масляных ароматов: подбор по нотам, сезонам и времени дня. Заказ через мессенджеры.",
+  });
+  setCanonical(window.location.origin + "/");
+  setOpenGraphImage(window.location.origin + "/logo192.png");
+}, []);
+
 
   const getVolume = (id) => (volumeById[id] != null ? volumeById[id] : 50);
+  const getMix = (id) => (mixById[id] != null ? mixById[id] : "60/40");
   const setVolume = (id, v) => {
-    const safe = clamp(Number(v) || 50, 10, 100);
+    const safe = clamp(Number(v) || 50, 20, 100);
     setVolumeById((prev) => ({ ...prev, [id]: safe }));
+  };
+  const setMix = (id, v) => {
+    setMixById((prev) => ({ ...prev, [id]: v || "60/40" }));
   };
 
   const [mustNotes, setMustNotes] = useState([]);
@@ -152,6 +168,7 @@ useEffect(() => {
   // модалка подробностей (можешь заменить на navigate(`/perfumes/${id}`), если захочешь)
   const [activePerfume, setActivePerfume] = useState(null);
   const activeVolume = activePerfume ? getVolume(activePerfume.id) : 50;
+  const activeMix = activePerfume ? getMix(activePerfume.id) : "60/40";
 
   const computed = useMemo(
     () =>
@@ -184,6 +201,39 @@ useEffect(() => {
     const start = (page - 1) * PAGE_SIZE;
     return computed.items.slice(start, start + PAGE_SIZE);
   }, [computed.items, page]);
+
+  const [reviewSummaries, setReviewSummaries] = useState({});
+
+  useEffect(() => {
+    let alive = true;
+    if (!pagedItems.length) {
+      setReviewSummaries({});
+      return () => {
+        alive = false;
+      };
+    }
+
+    (async () => {
+      const entries = await Promise.all(
+        pagedItems.map(async ({ perfume }) => {
+          const summary = await computeReviewSummary(perfume?.id);
+          return [perfume?.id, summary];
+        })
+      );
+      if (!alive) return;
+      setReviewSummaries((prev) => {
+        const next = { ...prev };
+        for (const [id, summary] of entries) {
+          next[id] = summary;
+        }
+        return next;
+      });
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [pagedItems]);
 
   const clearAll = () => {
     setMustNotes([]);
@@ -235,13 +285,14 @@ useEffect(() => {
         onGoCart={() => navigate("/cart")}
         onOpenHelp={() => setHelpOpen(true)}
         onOpenFilters={() => setFiltersOpenMobile(true)}
-          onOpenAuth={openAuthModal}
-          authLabel={authLabel}
+        onOpenAuth={openAuthModal}
+        authLabel={authLabel}
         q={q}
         onChangeQ={setQ}
         onClearQ={() => setQ("")}
         suggestions={searchSuggestions}
         onSelectSuggestion={(s) => setQ([s.name, s.brand].filter(Boolean).join(" "))}
+        onGoWholesale={() => navigate("/wholesale")}
       />
 
       {/*
@@ -313,8 +364,11 @@ useEffect(() => {
             perfume={{ ...perfume, isHit: perfume.isHit || autoHitIds.has(perfume.id) }}
             score={score}
             liked={favorites.includes(perfume.id)}
+            reviewSummary={reviewSummaries[perfume.id]}
             volume={getVolume(perfume.id)}
             onVolumeChange={(v) => setVolume(perfume.id, v)}
+            mix={getMix(perfume.id)}
+            onMixChange={(v) => setMix(perfume.id, v)}
             onLike={() => toggleFavorite(perfume.id)}
             onDetails={() => {
               logStatEvent({ perfumeId: perfume.id, type: "view" });
@@ -322,8 +376,7 @@ useEffect(() => {
             }}
             onAddToCart={() => {
               logStatEvent({ perfumeId: perfume.id, type: "add_to_cart" });
-              addToCart(perfume.id, getVolume(perfume.id), 1);
-              navigate("/cart");
+              addToCart(perfume.id, getVolume(perfume.id), 1, getMix(perfume.id));
             }}
           />
         ))}
@@ -357,15 +410,16 @@ useEffect(() => {
         open={Boolean(activePerfume)}
         perfume={activePerfume}
         volume={activeVolume}
+        mix={activeMix}
         liked={Boolean(activePerfume && favorites.includes(activePerfume.id))}
         onVolumeChange={(v) => activePerfume && setVolume(activePerfume.id, v)}
+        onMixChange={(v) => activePerfume && setMix(activePerfume.id, v)}
         onClose={() => setActivePerfume(null)}
         onAddToCart={() => {
           if (!activePerfume) return;
           logStatEvent({ perfumeId: activePerfume.id, type: "add_to_cart" });
-          addToCart(activePerfume.id, activeVolume, 1);
+          addToCart(activePerfume.id, activeVolume, 1, activeMix);
           setActivePerfume(null);
-          navigate("/cart");
         }}
         onToggleFavorite={() => {
           if (!activePerfume) return;

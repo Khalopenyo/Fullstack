@@ -1,5 +1,4 @@
-import { collection, getDocs, doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "../firebase/firebase";
+import { apiFetch } from "./api";
 
 const ALLOWED_SEASONS = new Set(["Зима", "Весна", "Лето", "Осень"]);
 const ALLOWED_DAYNIGHT = new Set(["Утро", "День", "Вечер", "Ночь"]);
@@ -41,7 +40,6 @@ function normalizeNotes(rawNotes, issues, id) {
   const heart = asStringArray(notes.heart);
   const base = asStringArray(notes.base);
 
-  // Если документ хранит ноты плоским массивом notes: [...]
   const flat = asStringArray(rawNotes);
   const merged = flat.length ? { top: flat, heart: [], base: [] } : { top, heart, base };
 
@@ -87,10 +85,8 @@ export function normalizePerfume(raw, id, issues = []) {
   const orderCount = asNumber(raw.orderCount ?? 0, 0);
   const inStock = typeof raw.inStock === "boolean" ? raw.inStock : true;
 
-  // Валюта (в статическом датасете она есть, но в Firestore могла не быть)
   const currency = asString(raw.currency, "₽").trim() || "₽";
 
-  // Популярность (лучше поддерживать на бэке через Cloud Functions)
   const popularity = asNumber(raw.popularity ?? raw.popularityScore ?? 0, 0);
   const popularityMonth = asNumber(raw.popularityMonth ?? raw.popularityMonthScore ?? 0, 0);
   const popularityMonthKey = asString(raw.popularityMonthKey, "").trim();
@@ -121,55 +117,57 @@ export function normalizePerfume(raw, id, issues = []) {
     popularity,
     popularityMonth,
     popularityMonthKey,
+    reviewAvg: asNumber(raw.reviewAvg ?? raw.ratingAvg ?? 0, 0),
+    reviewCount: asNumber(raw.reviewCount ?? raw.ratingCount ?? 0, 0),
   };
 
   return perfume;
 }
 
-export async function fetchPerfumes() {
-  const snap = await getDocs(collection(db, "perfumes"));
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+function modeFromCollection(name) {
+  return name === "wholesale_perfumes" ? "wholesale" : "retail";
 }
 
-export async function fetchPerfumesWithDiagnostics() {
-  const snap = await getDocs(collection(db, "perfumes"));
+export async function fetchPerfumes(mode = "retail") {
+  return apiFetch(`/api/perfumes?mode=${encodeURIComponent(mode)}`);
+}
+
+export async function fetchCatalogWithDiagnostics(collectionName) {
+  const mode = modeFromCollection(collectionName || "perfumes");
+  const data = await fetchPerfumes(mode);
   const issues = [];
   const perfumes = [];
 
-  for (const d of snap.docs) {
-    const id = d.id;
-    const raw = d.data();
+  for (const raw of data || []) {
+    const id = raw.id;
     const localIssues = [];
     const p = normalizePerfume(raw, id, localIssues);
-
-    // Документ «плохой», но мы не дропаем его полностью — только сообщаем.
-    // Если ты захочешь, можно сделать строгий drop по условиям.
     issues.push(...localIssues);
     perfumes.push(p);
   }
 
   const summary = {
-    docs: snap.docs.length,
+    docs: perfumes.length,
     warnings: issues.filter((x) => x.level === "warn").length,
   };
 
   return { perfumes, issues, summary };
 }
 
-export async function upsertPerfume(id, data) {
+export async function fetchPerfumesWithDiagnostics() {
+  return fetchCatalogWithDiagnostics("perfumes");
+}
+
+export async function upsertPerfume(id, data, catalogMode = "retail") {
   if (!id) throw new Error("id обязателен");
-  const ref = doc(db, "perfumes", id);
-  await setDoc(
-    ref,
-    {
-      ...data,
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
+  const payload = { ...data, id, catalogMode };
+  await apiFetch(`/api/perfumes/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function deletePerfume(id) {
   if (!id) throw new Error("id обязателен");
-  await deleteDoc(doc(db, "perfumes", id));
+  await apiFetch(`/api/perfumes/${encodeURIComponent(id)}`, { method: "DELETE" });
 }

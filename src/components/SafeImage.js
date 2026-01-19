@@ -7,11 +7,13 @@ export default function SafeImage({
   fallbackSrc = "/placeholder-perfume.svg",
   ...rest
 }) {
-  const [current, setCurrent] = React.useState(src || fallbackSrc);
+  const apiBase = process.env.REACT_APP_API_URL || "";
+  const resolvedSrc = src && src.startsWith("/uploads/") && apiBase ? `${apiBase}${src}` : src;
+  const [current, setCurrent] = React.useState(resolvedSrc || fallbackSrc);
 
   React.useEffect(() => {
-    setCurrent(src || fallbackSrc);
-  }, [src, fallbackSrc]);
+    setCurrent(resolvedSrc || fallbackSrc);
+  }, [resolvedSrc, fallbackSrc]);
 
   return (
     <img

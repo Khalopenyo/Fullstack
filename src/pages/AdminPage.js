@@ -6,11 +6,9 @@ import { X } from "lucide-react";
 
 import { THEME } from "../data/theme";
 import { useAuth } from "../state/auth";
-import { db, storage } from "../firebase/firebase";
-import { fetchPerfumesWithDiagnostics } from "../services/perfumesRepo";
-
-import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { fetchCatalogWithDiagnostics, upsertPerfume, deletePerfume } from "../services/perfumesRepo";
+import { uploadPerfumeImage } from "../services/storageRepo";
+import { listOrders, updateOrder, deleteOrder, listUsers } from "../services/adminApi";
 
 const SEASONS = ["Зима", "Весна", "Лето", "Осень"];
 const DAYNIGHT = ["Утро", "День", "Вечер", "Ночь"];
@@ -32,15 +30,16 @@ function clampInt(v, min, max, fallback) {
   const x = Number.isFinite(n) ? Math.round(n) : fallback;
   return Math.max(min, Math.min(max, x));
 }
-function nextId(perfumes) {
+function nextId(perfumes, prefix = "p") {
   let max = 0;
   for (const p of perfumes || []) {
-    const m = String(p.id || "").match(/^p-(\d{1,4})$/i);
+    const re = new RegExp(`^${prefix}-(\\d{1,4})$`, "i");
+    const m = String(p.id || "").match(re);
     if (m) max = Math.max(max, Number(m[1]));
   }
   const n = max + 1;
   const pad = n < 10 ? `0${n}` : String(n);
-  return `p-${pad}`;
+  return `${prefix}-${pad}`;
 }
 
 function Input({ ...props }) {
@@ -198,14 +197,21 @@ export default function AdminPage() {
   const uid = user?.uid || "";
   const sessionLabel = !user ? "—" : user.isAnonymous ? "Гость" : user.email || "Аккаунт";
 
-  const [checkingAdmin, setCheckingAdmin] = React.useState(true);
-  const [isAdmin, setIsAdmin] = React.useState(false);
+  const checkingAdmin = !authReady;
+  const isAdmin = Boolean(user?.isAdmin);
 
   const [loading, setLoading] = React.useState(true);
   const [items, setItems] = React.useState([]);
   const [diag, setDiag] = React.useState(null);
   const [q, setQ] = React.useState("");
   const [visibleCount, setVisibleCount] = React.useState(10);
+  const [catalogMode, setCatalogMode] = React.useState("retail");
+  const [adminTab, setAdminTab] = React.useState("catalog");
+  const [orders, setOrders] = React.useState([]);
+  const [ordersLoading, setOrdersLoading] = React.useState(false);
+  const [ordersChannel, setOrdersChannel] = React.useState("all");
+  const [users, setUsers] = React.useState([]);
+  const [usersLoading, setUsersLoading] = React.useState(false);
 
   const [editorOpen, setEditorOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -253,6 +259,10 @@ export default function AdminPage() {
     });
   }, [items, q]);
 
+  const catalogLabel = catalogMode === "wholesale" ? "Оптовый каталог" : "Каталог";
+  const collectionName = catalogMode === "wholesale" ? "wholesale_perfumes" : "perfumes";
+  const idPrefix = catalogMode === "wholesale" ? "w" : "p";
+
   React.useEffect(() => {
     setVisibleCount(10);
   }, [q, items]);
@@ -260,7 +270,7 @@ export default function AdminPage() {
   const load = React.useCallback(async () => {
     setLoading(true);
     try {
-      const { perfumes, issues, summary } = await fetchPerfumesWithDiagnostics();
+      const { perfumes, issues, summary } = await fetchCatalogWithDiagnostics(collectionName);
       setItems(perfumes || []);
       setDiag({ issues: issues || [], summary: summary || null });
     } catch (e) {
@@ -270,41 +280,96 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [collectionName]);
 
   React.useEffect(() => {
     if (!authReady) return;
-    let alive = true;
-
-    (async () => {
-      try {
-        if (!uid) {
-          if (!alive) return;
-          setIsAdmin(false);
-          return;
-        }
-        const snap = await getDoc(doc(db, "admins", uid));
-        if (!alive) return;
-        setIsAdmin(snap.exists());
-      } catch {
-        if (!alive) return;
-        setIsAdmin(false);
-      } finally {
-        if (!alive) return;
-        setCheckingAdmin(false);
-      }
-    })();
-
-    return () => (alive = false);
-  }, [authReady, uid]);
+  }, [authReady]);
 
   React.useEffect(() => {
     if (!authReady) return;
     load();
-  }, [authReady, load]);
+  }, [authReady, load, catalogMode]);
+
+  const loadOrders = React.useCallback(async () => {
+    setOrdersLoading(true);
+    try {
+      const list = await listOrders();
+      setOrders(Array.isArray(list) ? list : []);
+    } catch (e) {
+      console.error(e);
+      setOrders([]);
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, []);
+
+  const setOrderFulfilled = React.useCallback(async (orderId, fulfilled) => {
+    if (!orderId) return;
+    try {
+      await updateOrder(orderId, fulfilled);
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, fulfilled: Boolean(fulfilled) } : o)));
+    } catch (e) {
+      console.error(e);
+      alert("Не удалось обновить статус заказа.");
+    }
+  }, []);
+
+  const removeOrder = React.useCallback(async (orderId) => {
+    if (!orderId) return;
+    if (!window.confirm("Удалить заказ?")) return;
+    try {
+      await deleteOrder(orderId);
+      setOrders((prev) => prev.filter((o) => o.id !== orderId));
+    } catch (e) {
+      console.error(e);
+      alert("Не удалось удалить заказ.");
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (!authReady) return;
+    if (!isAdmin) return;
+    if (adminTab !== "orders") return;
+    loadOrders();
+  }, [authReady, isAdmin, adminTab, loadOrders]);
+
+  const loadUsers = React.useCallback(async () => {
+    setUsersLoading(true);
+    try {
+      const list = await listUsers();
+      setUsers(Array.isArray(list) ? list : []);
+    } catch (e) {
+      console.error(e);
+      setUsers([]);
+    } finally {
+      setUsersLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (!authReady) return;
+    if (!isAdmin) return;
+    if (adminTab !== "users") return;
+    loadUsers();
+  }, [authReady, isAdmin, adminTab, loadUsers]);
+
+  const filteredOrders = React.useMemo(() => {
+    if (ordersChannel === "all") return orders;
+    return orders.filter((o) => String(o.channel || "").toLowerCase() === ordersChannel);
+  }, [orders, ordersChannel]);
+
+  const filteredUsers = React.useMemo(() => {
+    const queryText = (q || "").trim().toLowerCase();
+    if (!queryText) return users;
+    return users.filter((u) => {
+      const hay = [u.id, u.email, u.displayName].join(" ").toLowerCase();
+      return hay.includes(queryText);
+    });
+  }, [users, q]);
 
   function openNew() {
-    const id = nextId(items);
+    const id = nextId(items, idPrefix);
     setDraft({
       id,
       brand: "",
@@ -388,12 +453,11 @@ export default function AdminPage() {
       image: String(draft.image || "").trim(),
       currency: String(draft.currency || "₽").trim() || "₽",
 
-      updatedAt: serverTimestamp(),
     };
 
     setSaving(true);
     try {
-      await setDoc(doc(db, "perfumes", id), payload, { merge: true });
+      await upsertPerfume(id, payload, catalogMode === "wholesale" ? "wholesale" : "retail");
       await load();
       setEditorOpen(false);
     } catch (e) {
@@ -411,7 +475,7 @@ export default function AdminPage() {
 
     setSaving(true);
     try {
-      await deleteDoc(doc(db, "perfumes", id));
+      await deletePerfume(id);
       await load();
       setEditorOpen(false);
     } catch (e) {
@@ -429,19 +493,12 @@ export default function AdminPage() {
 
     setUploading(true);
     try {
-      const safeName = String(file.name || "image").replace(/[^\w.\-]+/g, "_");
-      const path = `perfumes/${id}/${Date.now()}_${safeName}`;
-      const r = ref(storage, path);
-      await uploadBytes(r, file, {
-        cacheControl: "public,max-age=31536000,immutable",
-      });
-      const url = await getDownloadURL(r);
-      setDraft((p) => ({ ...p, image: url }));
+      const result = await uploadPerfumeImage(id, file);
+      if (result?.url) setDraft((p) => ({ ...p, image: result.url }));
     } catch (e) {
       console.error(e);
       alert(
-        "Не удалось загрузить изображение в Storage.\n" +
-          "Если нужно — скажи, и я дам точные Storage Rules + проверим storageBucket.\n\n" +
+        "Не удалось загрузить изображение.\n\n" +
           (e?.message || "")
       );
     } finally {
@@ -478,7 +535,7 @@ export default function AdminPage() {
       >
         <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <div className="text-sm font-semibold">Админка товаров</div>
+            <div className="text-sm font-semibold">Админка товаров · {catalogLabel}</div>
             {/* <div className="text-xs mt-0.5" style={{ color: THEME.muted }}>
               Сессия: <span style={{ color: THEME.text }}>{sessionLabel}</span>
               {uid ? (
@@ -551,10 +608,67 @@ export default function AdminPage() {
             {/* toolbar */}
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between mt-5">
               <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    className="rounded-full border px-4 py-2 text-sm hover:bg-white/[0.06]"
+                    style={{
+                      borderColor: THEME.border2,
+                      color: THEME.text,
+                      background: adminTab === "catalog" && catalogMode === "retail" ? "rgba(255,255,255,0.06)" : "transparent",
+                    }}
+                    onClick={() => {
+                      setAdminTab("catalog");
+                      setCatalogMode("retail");
+                    }}
+                  >
+                    Розница
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-full border px-4 py-2 text-sm hover:bg-white/[0.06]"
+                    style={{
+                      borderColor: THEME.border2,
+                      color: THEME.text,
+                      background: adminTab === "catalog" && catalogMode === "wholesale" ? "rgba(255,255,255,0.06)" : "transparent",
+                    }}
+                    onClick={() => {
+                      setAdminTab("catalog");
+                      setCatalogMode("wholesale");
+                    }}
+                  >
+                    Опт
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-full border px-4 py-2 text-sm hover:bg-white/[0.06]"
+                    style={{
+                      borderColor: THEME.border2,
+                      color: THEME.text,
+                      background: adminTab === "orders" ? "rgba(255,255,255,0.06)" : "transparent",
+                    }}
+                    onClick={() => setAdminTab("orders")}
+                  >
+                    Заказы
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-full border px-4 py-2 text-sm hover:bg-white/[0.06]"
+                    style={{
+                      borderColor: THEME.border2,
+                      color: THEME.text,
+                      background: adminTab === "users" ? "rgba(255,255,255,0.06)" : "transparent",
+                    }}
+                    onClick={() => setAdminTab("users")}
+                  >
+                    Пользователи
+                  </button>
+                </div>
                 <input
+                  disabled={adminTab === "orders"}
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
-                  placeholder="Поиск по названию / нотам / тегам..."
+                  placeholder={adminTab === "users" ? "Поиск по имени / email / UID..." : "Поиск по названию / нотам / тегам..."}
                   className="w-full lg:w-[420px] rounded-full border px-4 py-2 text-sm outline-none"
                   style={{
                     borderColor: THEME.border2,
@@ -566,11 +680,34 @@ export default function AdminPage() {
                   type="button"
                   className="rounded-full border px-4 py-2 text-sm hover:bg-white/[0.06]"
                   style={{ borderColor: THEME.border2, color: THEME.text }}
-                  onClick={load}
-                  disabled={loading}
+                  onClick={adminTab === "orders" ? loadOrders : adminTab === "users" ? loadUsers : load}
+                  disabled={adminTab === "orders" ? ordersLoading : adminTab === "users" ? usersLoading : loading}
                 >
-                  {loading ? "..." : "Обновить"}
+                  {adminTab === "orders"
+                    ? (ordersLoading ? "..." : "Обновить")
+                    : adminTab === "users"
+                    ? (usersLoading ? "..." : "Обновить")
+                    : loading
+                    ? "..."
+                    : "Обновить"}
                 </button>
+                {adminTab === "orders" ? (
+                  <select
+                    value={ordersChannel}
+                    onChange={(e) => setOrdersChannel(e.target.value)}
+                    className="rounded-full border px-4 py-2 text-sm outline-none"
+                    style={{
+                      borderColor: THEME.border2,
+                      background: "rgba(255,255,255,0.03)",
+                      color: THEME.text,
+                    }}
+                  >
+                    <option value="all">Все каналы</option>
+                    <option value="wa">WhatsApp</option>
+                    <option value="tg">Telegram</option>
+                    <option value="ig">Instagram</option>
+                  </select>
+                ) : null}
 
                 {diag?.summary?.warnings ? (
                   <span
@@ -587,26 +724,119 @@ export default function AdminPage() {
                 ) : null}
               </div>
 
-              <button
-                type="button"
-                className="rounded-full px-5 py-3 text-sm font-semibold"
-                style={{ background: THEME.accent, color: "#0B0B0F" }}
-                onClick={openNew}
-              >
-                + Новый товар
-              </button>
+              {adminTab === "catalog" ? (
+                <button
+                  type="button"
+                  className="rounded-full px-5 py-3 text-sm font-semibold"
+                  style={{ background: THEME.accent, color: "#0B0B0F" }}
+                  onClick={openNew}
+                >
+                  + Новый товар
+                </button>
+              ) : null}
             </div>
 
             {/* list */}
             <div className="mt-4">
-              {loading ? (
+              {adminTab === "orders" ? (
+                ordersLoading ? (
+                  <div className="text-sm opacity-70">Загрузка...</div>
+                ) : filteredOrders.length === 0 ? (
+                  <div className="text-sm opacity-70">Нет заказов</div>
+                ) : (
+                  <div className="grid gap-3">
+                    {filteredOrders.map((o) => (
+                      <div
+                        key={o.id}
+                        className="rounded-3xl border p-4"
+                        style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-sm font-semibold">
+                            Заказ {o.id}
+                          </div>
+                          <div className="text-xs" style={{ color: THEME.muted }}>
+                            {o.channel ? `Канал: ${o.channel}` : "Канал: —"}
+                          </div>
+                        </div>
+                        <div className="mt-1 text-xs" style={{ color: THEME.muted }}>
+                          {o.displayName || "Без имени"}
+                          {o.email ? ` · ${o.email}` : ""}
+                          {o.isAnonymous ? " · гость" : ""}
+                        </div>
+                        <div className="mt-3 text-sm">
+                          {(o.items || []).map((it, idx) => (
+                            <div key={idx} className="flex flex-wrap gap-2">
+                              <span>
+                                {it.id} · {it.volume} мл · {it.mix || "60/40"} ×{it.qty}
+                              </span>
+                              <span style={{ color: THEME.muted }}>
+                                — {it.price}{o.currency || "₽"}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-3 text-sm font-semibold">
+                          Итого: {o.total}{o.currency || "₽"}
+                        </div>
+                        <div className="mt-3 flex flex-wrap items-center gap-3">
+                          <label className="inline-flex items-center gap-2 text-xs" style={{ color: THEME.muted }}>
+                            <input
+                              type="checkbox"
+                              checked={Boolean(o.fulfilled)}
+                              onChange={(e) => setOrderFulfilled(o.id, e.target.checked)}
+                            />
+                            Выкуплен
+                          </label>
+                          <button
+                            type="button"
+                            className="rounded-full border px-3 py-1.5 text-xs hover:bg-white/[0.06]"
+                            style={{ borderColor: "rgba(255,120,120,0.45)", color: THEME.text }}
+                            onClick={() => removeOrder(o.id)}
+                          >
+                            Удалить
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : adminTab === "users" ? (
+                usersLoading ? (
+                  <div className="text-sm opacity-70">Загрузка...</div>
+                ) : filteredUsers.length === 0 ? (
+                  <div className="text-sm opacity-70">Нет пользователей</div>
+                ) : (
+                  <div className="grid gap-3">
+                    {filteredUsers.map((u) => (
+                      <div
+                        key={u.id}
+                        className="rounded-3xl border p-4"
+                        style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-sm font-semibold">
+                            {u.displayName || "Без имени"}
+                          </div>
+                          <div className="text-xs" style={{ color: THEME.muted }}>
+                            {u.email || "—"}
+                          </div>
+                        </div>
+                        <div className="mt-2 text-xs" style={{ color: THEME.muted }}>
+                          UID: <span style={{ color: THEME.text }}>{u.id}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              ) : loading ? (
                 <div className="text-sm opacity-70">Загрузка...</div>
               ) : filtered.length === 0 ? (
                 <div className="text-sm opacity-70">Нет товаров</div>
               ) : (
                 <>
                   {/* ✅ МОБИЛЬНЫЕ КАРТОЧКИ (не влияют на sm+) */}
-                  <div className="grid gap-3 sm:hidden">
+                  <div className="adminListMobile grid gap-3">
                     {filtered.slice(0, visibleCount).map((p) => (
                       <div
                         key={p.id}
@@ -708,7 +938,7 @@ export default function AdminPage() {
                   </div>
 
                   {/* ✅ ТВОЯ ТЕКУЩАЯ СЕТКА ДЛЯ sm+ (вообще не меняем дизайн) */}
-                  <div className="hidden sm:grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  <div className="adminListDesktop grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
                     {filtered.slice(0, visibleCount).map((p) => (
                       <div
                         key={p.id}
@@ -810,7 +1040,7 @@ export default function AdminPage() {
               )}
             </div>
 
-            {filtered.length > visibleCount ? (
+            {adminTab === "catalog" && filtered.length > visibleCount ? (
               <div className="mt-4 flex justify-center">
                 <button
                   type="button"
@@ -826,7 +1056,7 @@ export default function AdminPage() {
             {/* modal editor */}
             <EditorModal
               open={editorOpen}
-              title={draft?.id ? `Товар: ${draft.id}` : "Новый товар"}
+              title={draft?.id ? `${catalogLabel}: ${draft.id}` : `Новый товар · ${catalogLabel}`}
               onClose={() => setEditorOpen(false)}
               footer={
                 <div className="flex items-center justify-between gap-3">

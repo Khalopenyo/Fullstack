@@ -21,7 +21,7 @@ service cloud.firestore {
     match /perfumes/{perfumeId} {
       allow read: if true;
       allow create, update, delete: if isAdmin();
-      allow update: if isSignedIn() && changedKeys().hasOnly(["orderCount"]);
+      allow update: if isSignedIn() && changedKeys().hasOnly(["orderCount", "reviewAvg", "reviewCount"]);
 
       match /reviews/{reviewId} {
         allow read: if true;
@@ -42,8 +42,18 @@ service cloud.firestore {
       }
     }
 
+    match /wholesale_perfumes/{perfumeId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
     match /carts/{uid} {
       allow read, write: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    match /users/{uid} {
+      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
+      allow create, update, delete: if isSignedIn() && request.auth.uid == uid;
     }
 
     match /users/{uid}/favorites/{perfumeId} {

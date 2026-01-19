@@ -1,13 +1,14 @@
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "../firebase/firebase";
+import { apiFetch } from "./api";
 
 export async function loadCart(uid) {
-  const ref = doc(db, "carts", uid);
-  const snap = await getDoc(ref);
-  return snap.exists() ? snap.data() : { items: [] };
+  if (!uid) return { items: [] };
+  return apiFetch("/api/cart");
 }
 
 export async function saveCart(uid, items) {
-  const ref = doc(db, "carts", uid);
-  await setDoc(ref, { items, updatedAt: serverTimestamp() }, { merge: true });
+  if (!uid) return;
+  await apiFetch("/api/cart", {
+    method: "PUT",
+    body: JSON.stringify({ items }),
+  });
 }

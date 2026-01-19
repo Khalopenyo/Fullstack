@@ -5,10 +5,19 @@ import SafeImage from "../components/SafeImage";
 import CheckoutModal from "../components/CheckoutModal";
 import { useShop } from "../state/shop";
 import { priceForVolume } from "../lib/scoring";
+import { setCanonical, setMeta, setOpenGraphImage } from "../lib/seo";
 
 export default function CartPage() {
   const { cart, removeFromCart, setQty, perfumesById } = useShop();
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  React.useEffect(() => {
+    setMeta({
+      title: "Bakhur — корзина",
+      description: "Проверь выбранные ароматы и оформи заказ.",
+    });
+    setCanonical(window.location.origin + "/cart");
+    setOpenGraphImage(window.location.origin + "/logo192.png");
+  }, []);
 
   const items = useMemo(() => {
     return cart
@@ -22,7 +31,7 @@ export default function CartPage() {
             sum: 0,
           };
         }
-        const unit = priceForVolume(perfume.basePrice ?? perfume.price, row.volume, perfume.baseVolume);
+        const unit = priceForVolume(perfume.basePrice ?? perfume.price, row.volume, perfume.baseVolume, row.mix);
         const sum = unit * row.qty;
         return { ...row, perfume, unit, sum };
       })
@@ -63,7 +72,7 @@ export default function CartPage() {
             <div className="mt-6 space-y-3">
               {items.map((x) => (
                 <div
-                  key={x.id + "-" + x.volume}
+                  key={x.id + "-" + x.volume + "-" + (x.mix || "60/40")}
                   className="rounded-3xl border p-4"
                   style={{ borderColor: THEME.border2, background: THEME.surface2 }}
                 >
@@ -92,7 +101,7 @@ export default function CartPage() {
                         </div>
                         <div className="mt-1 text-lg font-semibold">{x.perfume.name}</div>
                         <div className="mt-1 text-sm" style={{ color: THEME.muted }}>
-                          {x.volume} мл · {x.unit}{x.perfume.currency || "₽"} / шт
+                          {x.volume} мл · {x.mix || "60/40"} · {x.unit}{x.perfume.currency || "₽"} / шт
                         </div>
                       </div>
                     </div>
@@ -100,7 +109,7 @@ export default function CartPage() {
                     <button
                       className="w-full sm:w-auto rounded-full border px-4 py-2 text-sm hover:bg-white/[0.06]"
                       style={{ borderColor: THEME.border2, color: THEME.text }}
-                      onClick={() => removeFromCart(x.id, x.volume)}
+                      onClick={() => removeFromCart(x.id, x.volume, x.mix)}
                     >
                       Удалить
                     </button>
@@ -114,7 +123,7 @@ export default function CartPage() {
                       <button
                         className="h-9 w-9 rounded-full border hover:bg-white/[0.06]"
                         style={{ borderColor: THEME.border2, color: THEME.text }}
-                        onClick={() => setQty(x.id, x.volume, x.qty - 1)}
+                        onClick={() => setQty(x.id, x.volume, x.qty - 1, x.mix)}
                       >
                         −
                       </button>
@@ -122,7 +131,7 @@ export default function CartPage() {
                       <button
                         className="h-9 w-9 rounded-full border hover:bg-white/[0.06]"
                         style={{ borderColor: THEME.border2, color: THEME.text }}
-                        onClick={() => setQty(x.id, x.volume, x.qty + 1)}
+                        onClick={() => setQty(x.id, x.volume, x.qty + 1, x.mix)}
                       >
                         +
                       </button>

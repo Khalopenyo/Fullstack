@@ -1,18 +1,13 @@
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { db } from "../firebase/firebase";
+import { apiFetch } from "./api";
 
-// Пишем сырые события в Firestore. Дальше Cloud Functions (или другая бэковая логика)
-// агрегируют их в поля popularity/popularityMonth у товаров.
-//
-// Важно: этот вызов не должен ломать UX — поэтому мы глотаем ошибки.
+// Пишем сырые события в бэк, не ломая UX при ошибке.
 export async function logStatEvent({ perfumeId, type }) {
   try {
     if (!perfumeId) return;
     const safeType = typeof type === "string" ? type : "view";
-    await addDoc(collection(db, "stat_events"), {
-      perfumeId,
-      type: safeType,
-      createdAt: serverTimestamp(),
+    await apiFetch("/api/stats", {
+      method: "POST",
+      body: JSON.stringify({ perfumeId, type: safeType }),
     });
   } catch (e) {
     console.warn("logStatEvent failed", e);

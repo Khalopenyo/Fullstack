@@ -1,16 +1,16 @@
-import { collection, deleteDoc, doc, getDocs, setDoc } from "firebase/firestore";
-import { db } from "../firebase/firebase";
+import { apiFetch } from "./api";
 
 export async function loadFavorites(uid) {
-  const col = collection(db, "users", uid, "favorites");
-  const snap = await getDocs(col);
-  return snap.docs.map((d) => d.id); // perfumeId хранится как id документа
+  if (!uid) return [];
+  return apiFetch("/api/favorites");
 }
 
 export async function addFavorite(uid, perfumeId) {
-  await setDoc(doc(db, "users", uid, "favorites", perfumeId), { createdAt: Date.now() });
+  if (!uid || !perfumeId) return;
+  await apiFetch(`/api/favorites/${encodeURIComponent(perfumeId)}`, { method: "POST" });
 }
 
 export async function removeFavorite(uid, perfumeId) {
-  await deleteDoc(doc(db, "users", uid, "favorites", perfumeId));
+  if (!uid || !perfumeId) return;
+  await apiFetch(`/api/favorites/${encodeURIComponent(perfumeId)}`, { method: "DELETE" });
 }

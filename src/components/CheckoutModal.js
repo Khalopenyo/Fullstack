@@ -10,37 +10,48 @@ function formatLine(item) {
   const brand = p.brand || "";
   const name = p.name || "";
   const volume = item.volume != null ? String(item.volume) : "";
+  const mix = item.mix || "60/40";
   const qty = item.qty != null ? String(item.qty) : "1";
   const unit = item.unit != null ? String(item.unit) : "";
   const cur = p.currency || "₽";
-  return `- ${brand} ${name} · ${volume} мл ×${qty} — ${unit}${cur} / шт`;
+  return `- ${brand} ${name} · ${volume} мл · ${mix} ×${qty} — ${unit}${cur} / шт`;
 }
 
-function buildMessage(items, total) {
+function buildMessage(items, total, delivery) {
   const currency = (items[0]?.perfume?.currency) || "₽";
   const lines = items.map(formatLine).join("\n");
+  const method = delivery?.method === "delivery" ? "Доставка" : "Самовывоз";
+  const address = delivery?.method === "delivery" ? String(delivery?.address || "").trim() : "";
   return [
     "Здравствуйте! Хочу оформить заказ:",
     lines,
     "",
+    `Способ: ${method}`,
+    address ? `Адрес: ${address}` : null,
+    "",
     `Итого: ${total}${currency}`,
     "",
     "Напишите, пожалуйста, по наличию и доставке.",
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 export default function CheckoutModal({ open, items, total, onClose }) {
   const [copied, setCopied] = useState(false);
+  const [deliveryMethod, setDeliveryMethod] = useState("pickup");
+  const [address, setAddress] = useState("");
   const { user } = useAuth();
 
-  const message = useMemo(() => buildMessage(items || [], total || 0), [items, total]);
+  const delivery = { method: deliveryMethod, address };
+  const message = useMemo(() => buildMessage(items || [], total || 0, delivery), [items, total, deliveryMethod, address]);
   const encoded = useMemo(() => encodeURIComponent(message), [message]);
 
   if (!open) return null;
 
   const openWithCopy = async (url, channel) => {
     try {
-      await createOrder({ user, items, total, channel });
+      await createOrder({ user, items, total, channel, delivery: { method: deliveryMethod, address } });
     } catch {
       // не ломаем UX, если запись заказа не удалась
     }
@@ -69,16 +80,15 @@ export default function CheckoutModal({ open, items, total, onClose }) {
       }}
     >
       <div
-        className="w-full max-w-lg rounded-3xl border p-5 max-h-[88vh] overflow-y-auto sm:max-h-none sm:overflow-visible"
-        style={{ borderColor: THEME.border2, background: THEME.surface2, color: THEME.text }}
+        className="w-full max-w-lg rounded-3xl border p-5 max-h-[88vh] overflow-y-auto overflow-x-hidden sm:max-h-none sm:overflow-visible"
+        style={{ borderColor: THEME.border2, background: "#0B0B0F", color: THEME.text }}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="text-xl font-semibold">Оформление заказа</div>
             <div className="mt-1 text-sm" style={{ color: THEME.muted }}>
-              Выбери мессенджер — я открою твой чат с продавцом, а текст заказа заранее скопирую в буфер обмена.
-            </div>
+                          </div>
           </div>
 
           <button
@@ -114,15 +124,53 @@ export default function CheckoutModal({ open, items, total, onClose }) {
           </div>
 
           <pre
-            className="mt-3 whitespace-pre-wrap text-sm"
+            className="mt-3 w-full max-w-full whitespace-pre-wrap break-words text-sm"
             style={{
               color: THEME.text,
               fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
               lineHeight: 1.35,
+              overflowWrap: "anywhere",
+              wordBreak: "break-word",
+              maxWidth: "100%",
+              overflow: "hidden",
             }}
           >
             {message}
           </pre>
+        </div>
+
+        <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}>
+          <div className="text-sm font-semibold">Получение</div>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label className="text-xs" style={{ color: THEME.muted }}>
+              Способ
+              <select
+                value={deliveryMethod}
+                onChange={(e) => setDeliveryMethod(e.target.value)}
+                className="mt-2 w-full rounded-2xl border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[rgba(127,122,73,0.40)]"
+                style={{ borderColor: THEME.border2, color: THEME.text }}
+              >
+                <option value="pickup">Самовывоз</option>
+                <option value="delivery">Доставка</option>
+              </select>
+            </label>
+            <label className="text-xs" style={{ color: THEME.muted }}>
+              Адрес доставки
+              <input
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                disabled={deliveryMethod !== "delivery"}
+                placeholder="Город, улица, дом, квартира"
+                className="mt-2 w-full rounded-2xl border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[rgba(127,122,73,0.40)]"
+                style={{ borderColor: THEME.border2, color: THEME.text }}
+              />
+            </label>
+          </div>
+          {deliveryMethod === "delivery" && !address.trim() ? (
+            <div className="mt-2 text-xs" style={{ color: THEME.muted2 }}>
+              Укажи адрес — он попадёт в текст заказа.
+            </div>
+          ) : null}
         </div>
 
         <div className="mt-4 grid gap-3">

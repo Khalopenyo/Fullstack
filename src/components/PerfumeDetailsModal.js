@@ -4,13 +4,10 @@ import { X, Heart, Star } from "lucide-react";
 
 import { THEME } from "../data/theme";
 import SafeImage from "./SafeImage";
-import { VOLUME_OPTIONS } from "../data/perfumes";
+import { MIX_OPTIONS, VOLUME_OPTIONS } from "../data/perfumes";
 import { priceForVolume } from "../lib/scoring";
 import { useAuth } from "../state/auth";
-import { isAdminUid } from "../services/adminRepo";
 import { computeReviewSummary, deleteReview, listenReviews, upsertReview } from "../services/reviewsRepo";
-import { db } from "../firebase/firebase";
-import { doc, setDoc } from "firebase/firestore";
 
 function Dots({ value }) {
   return (
@@ -80,18 +77,43 @@ function StarRating({ value, onChange, readOnly = false }) {
   );
 }
 
+function MixSelect({ value, onChange }) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="text-xs" style={{ color: THEME.muted }}>
+        Пропорции
+      </div>
+      <select
+        value={value}
+        onChange={(e) => onChange?.(e.target.value)}
+        className="rounded-2xl border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[rgba(127,122,73,0.40)]"
+        style={{ borderColor: THEME.border2, color: THEME.text, background: "#0C0C10", colorScheme: "dark" }}
+        aria-label="Выбор пропорций"
+      >
+        {MIX_OPTIONS.map((v) => (
+          <option key={v} value={v}>
+            {v}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
 export default function PerfumeDetailsModal({
   open,
   perfume,
   volume,
+  mix,
   liked,
   onVolumeChange,
+  onMixChange,
   onClose,
   onAddToCart,
   onToggleFavorite,
 }) {
   const { user } = useAuth();
-  const [isAdmin, setIsAdmin] = React.useState(false);
+  const isAdmin = Boolean(user?.isAdmin);
   const [reviews, setReviews] = React.useState([]);
   const [reviewsLoading, setReviewsLoading] = React.useState(false);
   const [rating, setRating] = React.useState(0);
@@ -102,25 +124,7 @@ export default function PerfumeDetailsModal({
   const [reviewFormOpen, setReviewFormOpen] = React.useState(false);
 
   const title = perfume ? `${perfume.brand} — ${perfume.name}` : "";
-  const price = perfume ? priceForVolume(perfume.price, volume, perfume.baseVolume) : 0;
-
-  React.useEffect(() => {
-    let alive = true;
-    if (!open || !user?.uid) {
-      setIsAdmin(false);
-      return;
-    }
-    isAdminUid(user.uid)
-      .then((v) => {
-        if (alive) setIsAdmin(Boolean(v));
-      })
-      .catch(() => {
-        if (alive) setIsAdmin(false);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [open, user?.uid]);
+  const price = perfume ? priceForVolume(perfume.price, volume, perfume.baseVolume, mix) : 0;
 
   React.useEffect(() => {
     if (!open || !perfume?.id) return;
@@ -212,17 +216,12 @@ export default function PerfumeDetailsModal({
 
     setSavingReview(true);
     try {
-      await upsertReview(perfume.id, targetId, payload);
-      const summary = await computeReviewSummary(perfume.id);
-      setReviewSummary(summary);
-      try {
-        await setDoc(
-          doc(db, "perfumes", perfume.id),
-          { reviewAvg: summary.avg, reviewCount: summary.count },
-          { merge: true }
-        );
-      } catch {
-        // ignore if rules don't allow updating perfume summaries
+      const summary = await upsertReview(perfume.id, targetId, payload);
+      if (summary?.avg != null && summary?.count != null) {
+        setReviewSummary(summary);
+      } else {
+        const fallback = await computeReviewSummary(perfume.id);
+        setReviewSummary(fallback);
       }
       cancelEdit();
     } finally {
@@ -235,17 +234,12 @@ export default function PerfumeDetailsModal({
     if (!window.confirm("Удалить отзыв?")) return;
     setSavingReview(true);
     try {
-      await deleteReview(perfume.id, review.id);
-      const summary = await computeReviewSummary(perfume.id);
-      setReviewSummary(summary);
-      try {
-        await setDoc(
-          doc(db, "perfumes", perfume.id),
-          { reviewAvg: summary.avg, reviewCount: summary.count },
-          { merge: true }
-        );
-      } catch {
-        // ignore if rules don't allow updating perfume summaries
+      const summary = await deleteReview(perfume.id, review.id);
+      if (summary?.avg != null && summary?.count != null) {
+        setReviewSummary(summary);
+      } else {
+        const fallback = await computeReviewSummary(perfume.id);
+        setReviewSummary(fallback);
       }
       if (editingId === review.id) cancelEdit();
     } finally {
@@ -346,8 +340,9 @@ export default function PerfumeDetailsModal({
                           {perfume.description}
                         </div>
 
-                        <div className="mt-4">
+                        <div className="mt-4 flex flex-wrap items-center gap-3">
                           <VolumeSelect value={volume} onChange={onVolumeChange} size="regular" />
+                          <MixSelect value={mix} onChange={onMixChange} />
                         </div>
                       </div>
                     </div>

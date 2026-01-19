@@ -1,8 +1,26 @@
 import { clamp } from "./utils";
 
-export function priceForVolume(basePrice, volume, baseVolume) {
+const MIX_PRICE_TABLE = {
+  "60/40": {
+    100: 5000,
+    50: 3000,
+    30: 2000,
+    20: 1500,
+  },
+  "80/20": {
+    100: 7000,
+    50: 4000,
+    30: 3000,
+    20: 2000,
+  },
+};
+
+export function priceForVolume(basePrice, volume, baseVolume, mix) {
   const bv = Number(baseVolume) || 50;
   const v = Number(volume) || bv;
+  const ratio = mix || "60/40";
+  const table = MIX_PRICE_TABLE[ratio];
+  if (table && table[v] != null) return table[v];
   const p = Number(basePrice) || 0;
   return Math.round((p * (v / bv) + Number.EPSILON) * 100) / 100;
 }

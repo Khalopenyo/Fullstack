@@ -41,12 +41,14 @@ export default function AuthModal() {
   const [mode, setMode] = React.useState("signin"); // signin | signup
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
+  const [name, setName] = React.useState("");
 
   React.useEffect(() => {
     if (authModalOpen) {
       setMode("signin");
       setEmail("");
       setPassword("");
+      setName("");
     }
   }, [authModalOpen]);
 
@@ -112,6 +114,9 @@ export default function AuthModal() {
         </div>
 
         <div className="mt-4 space-y-3">
+          {mode === "signup" ? (
+            <Field label="Имя" value={name} onChange={setName} placeholder="Как к вам обращаться?" />
+          ) : null}
           <Field label="Email" value={email} onChange={setEmail} placeholder="you@example.com" />
           <Field label="Пароль" type="password" value={password} onChange={setPassword} placeholder="••••••••" />
         </div>
@@ -131,7 +136,7 @@ export default function AuthModal() {
             onClick={() => {
               const e = (email || "").trim();
               if (!e || password.length < 6) return;
-              if (mode === "signup") signUpEmail(e, password);
+              if (mode === "signup") signUpEmail(e, password, name.trim());
               else signInEmail(e, password);
             }}
           >

@@ -3,13 +3,26 @@ import { useNavigate, Link } from "react-router-dom";
 import { useShop } from "../state/shop";
 import { THEME } from "../data/theme";
 import PerfumeCard from "../components/PerfumeCard";
+import { setCanonical, setMeta, setOpenGraphImage } from "../lib/seo";
 
 export default function FavoritesPage() {
   const navigate = useNavigate();
   const { favorites, toggleFavorite, addToCart, perfumes } = useShop();
   const [volumeById, setVolumeById] = React.useState({});
+  const [mixById, setMixById] = React.useState({});
   const getVolume = (id, baseVolume) => (volumeById[id] != null ? volumeById[id] : (Number(baseVolume) || 50));
   const setVolume = (id, v) => setVolumeById((prev) => ({ ...prev, [id]: Number(v) || 50 }));
+  const getMix = (id) => (mixById[id] != null ? mixById[id] : "60/40");
+  const setMix = (id, v) => setMixById((prev) => ({ ...prev, [id]: v || "60/40" }));
+
+  React.useEffect(() => {
+    setMeta({
+      title: "Bakhur — избранное",
+      description: "Сохраняй любимые ароматы и возвращайся к ним позже.",
+    });
+    setCanonical(window.location.origin + "/favorites");
+    setOpenGraphImage(window.location.origin + "/logo192.png");
+  }, []);
 
   // Находим парфюмы по ID из избранного
   const favPerfumes = useMemo(() => {
@@ -60,7 +73,9 @@ export default function FavoritesPage() {
               onDetails={() => navigate(`/perfumes/${perfume.id}`)}
               volume={getVolume(perfume.id, perfume.baseVolume)}
               onVolumeChange={(v) => setVolume(perfume.id, v)}
-              onAddToCart={() => addToCart(perfume.id, getVolume(perfume.id, perfume.baseVolume), 1)}
+              mix={getMix(perfume.id)}
+              onMixChange={(v) => setMix(perfume.id, v)}
+              onAddToCart={() => addToCart(perfume.id, getVolume(perfume.id, perfume.baseVolume), 1, getMix(perfume.id))}
             />
           ))}
         </div>

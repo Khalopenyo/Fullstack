@@ -1,26 +1,26 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import {
-  EmailAuthProvider,
-  createUserWithEmailAndPassword,
-  linkWithCredential,
-  onAuthStateChanged,
-  signInAnonymously,
-  signInWithEmailAndPassword,
-  signOut,
-} from "firebase/auth";
-import { auth } from "../firebase/firebase";
+import { guest, login, me, register, signOut } from "../services/authRepo";
+import { getToken } from "../services/api";
 
 const AuthContext = createContext(null);
 
+function normalizeUser(raw) {
+  if (!raw) return null;
+  return {
+    ...raw,
+    uid: raw.uid || raw.id,
+    isAnonymous: Boolean(raw.isAnonymous),
+    isAdmin: Boolean(raw.isAdmin),
+  };
+}
+
 function humanizeAuthError(e) {
-  const code = e?.code || "";
-  if (code.includes("auth/invalid-email")) return "Некорректный email.";
-  if (code.includes("auth/user-not-found")) return "Пользователь не найден.";
-  if (code.includes("auth/wrong-password")) return "Неверный пароль.";
-  if (code.includes("auth/email-already-in-use")) return "Этот email уже используется.";
-  if (code.includes("auth/weak-password")) return "Слишком слабый пароль (минимум 6 символов).";
-  if (code.includes("auth/operation-not-allowed")) return "Проверь в Firebase Console: включён ли Email/Password Sign-in.";
-  return e?.message || "Ошибка авторизации.";
+  const msg = String(e?.message || "");
+  if (msg.includes("invalid credentials")) return "Неверный email или пароль.";
+  if (msg.includes("email already exists")) return "Этот email уже используется.";
+  if (msg.includes("password too short")) return "Слишком слабый пароль (минимум 6 символов).";
+  if (msg.includes("invalid email")) return "Некорректный email.";
+  return msg || "Ошибка авторизации.";
 }
 
 export function AuthProvider({ children }) {
@@ -28,23 +28,40 @@ export function AuthProvider({ children }) {
   const [authReady, setAuthReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [errorText, setErrorText] = useState("");
-
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (u) => {
-      setUser(u || null);
-      setAuthReady(true);
-      // Авто-гость, чтобы Firestore rules и чтение каталога работали предсказуемо
-      if (!u) {
-        try {
-          await signInAnonymously(auth);
-        } catch (e) {
-          setErrorText(humanizeAuthError(e));
+    let alive = true;
+
+    const init = async () => {
+      setAuthReady(false);
+      try {
+        const token = getToken();
+        if (token) {
+          const current = await me();
+          if (alive) setUser(normalizeUser(current));
+        } else {
+          const guestUser = await guest();
+          if (alive) setUser(normalizeUser(guestUser));
         }
+      } catch (e) {
+        signOut();
+        try {
+          const guestUser = await guest();
+          if (alive) setUser(normalizeUser(guestUser));
+        } catch (guestErr) {
+          if (alive) setErrorText(humanizeAuthError(guestErr));
+        }
+      } finally {
+        if (alive) setAuthReady(true);
       }
-    });
-    return () => unsub();
+    };
+
+    init();
+
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const openAuthModal = () => {
@@ -58,7 +75,6 @@ export function AuthProvider({ children }) {
   };
 
   const continueAsGuest = () => {
-    // если уже гость или уже залогинен — просто закрываем
     closeAuthModal();
   };
 
@@ -66,8 +82,9 @@ export function AuthProvider({ children }) {
     setBusy(true);
     setErrorText("");
     try {
-      await signOut(auth);
-      // onAuthStateChanged сам поднимет нового гостя
+      signOut();
+      const guestUser = await guest();
+      setUser(normalizeUser(guestUser));
     } catch (e) {
       setErrorText(humanizeAuthError(e));
     } finally {
@@ -79,7 +96,8 @@ export function AuthProvider({ children }) {
     setBusy(true);
     setErrorText("");
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const logged = await login(email, password);
+      setUser(normalizeUser(logged));
       closeAuthModal();
     } catch (e) {
       setErrorText(humanizeAuthError(e));
@@ -88,17 +106,12 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const signUpEmail = async (email, password) => {
+  const signUpEmail = async (email, password, displayName) => {
     setBusy(true);
     setErrorText("");
     try {
-      const current = auth.currentUser;
-      if (current?.isAnonymous) {
-        const cred = EmailAuthProvider.credential(email, password);
-        await linkWithCredential(current, cred);
-      } else {
-        await createUserWithEmailAndPassword(auth, email, password);
-      }
+      const created = await register(email, password, displayName);
+      setUser(normalizeUser(created));
       closeAuthModal();
     } catch (e) {
       setErrorText(humanizeAuthError(e));

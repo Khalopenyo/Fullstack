@@ -42,7 +42,8 @@ export const ALL_NOTES_GROUPS = [
   },
 ];
 
-export const VOLUME_OPTIONS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+export const VOLUME_OPTIONS = [20, 30, 50, 100];
+export const MIX_OPTIONS = ["60/40", "80/20"];
 
 // Inline "premium bottle" placeholders (no hosting needed)
 export const makeBottleSvg = (title, subtitle) => {

@@ -1,8 +1,6 @@
-import { db } from "../firebase/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { apiFetch } from "./api";
 
-export async function isAdminUid(uid) {
-  if (!uid) return false;
-  const snap = await getDoc(doc(db, "admins", uid));
-  return snap.exists();
+export async function isAdminUid() {
+  const me = await apiFetch("/api/auth/me");
+  return Boolean(me?.isAdmin);
 }

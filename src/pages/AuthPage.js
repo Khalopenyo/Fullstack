@@ -10,6 +10,7 @@ export default function AuthPage() {
   const [mode, setMode] = React.useState("signin");
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
+  const [name, setName] = React.useState("");
 
   const isAuthed = !!user;
   const isAnon = !!user?.isAnonymous;
@@ -53,6 +54,20 @@ export default function AuthPage() {
           </div>
 
           <div className="mt-4 space-y-3">
+            {mode === "signup" ? (
+              <label className="block">
+                <div className="mb-1 text-xs" style={{ color: THEME.muted2 }}>
+                  Имя
+                </div>
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="w-full rounded-2xl border px-4 py-3 text-sm outline-none"
+                  style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.03)", color: THEME.text }}
+                  placeholder="Как к вам обращаться?"
+                />
+              </label>
+            ) : null}
             <label className="block">
               <div className="mb-1 text-xs" style={{ color: THEME.muted2 }}>
                 Email
@@ -96,7 +111,7 @@ export default function AuthPage() {
               onClick={async () => {
                 const e = (email || "").trim();
                 if (!e || password.length < 6) return;
-                if (mode === "signup") await signUpEmail(e, password);
+                if (mode === "signup") await signUpEmail(e, password, name.trim());
                 else await signInEmail(e, password);
               }}
             >
