@@ -329,7 +329,7 @@ useEffect(() => {
               className="mt-4 rounded-2xl border px-4 py-3 text-sm"
               style={{ borderColor: "rgba(255,200,120,0.35)", background: "rgba(255,200,120,0.06)" }}
             >
-              ⚠️ В Firestore есть предупреждения по данным: {perfumesDiagnostics.summary.warnings}. Каталог не падает, но лучше поправить документы.
+              ⚠️ В данных есть предупреждения: {perfumesDiagnostics.summary.warnings}. Каталог не падает, но лучше поправить записи.
             </div>
           ) : null}
 
@@ -337,7 +337,7 @@ useEffect(() => {
   <div className="mt-5 text-sm opacity-70">Загрузка каталога...</div>
 ) : perfumesError ? (
   <div className="mt-5 text-sm opacity-70">
-    Не получилось загрузить каталог из Firestore. Проверь Firestore Rules / интернет.
+    Не получилось загрузить каталог. Проверь API и подключение.
   </div>
 ) : computed.total === 0 ? (
   <EmptyResults

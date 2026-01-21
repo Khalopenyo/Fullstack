@@ -598,9 +598,9 @@ export default function AdminPage() {
             <div className="mt-2 text-sm" style={{ color: THEME.muted }}>
               1) нажми «Аккаунт» и зайди (не гость),
               <br />
-              2) скопируй UID,
+              2) запомни email,
               <br />
-              3) в Firestore создай документ <b>admins/&lt;UID&gt;</b>.
+              3) в базе выставь <b>users.is_admin=true</b> для этого email.
             </div>
           </div>
         ) : (
