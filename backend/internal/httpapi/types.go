@@ -16,35 +16,36 @@ type AuthResponse struct {
 }
 
 type Perfume struct {
-	ID                  string   `json:"id"`
-	CatalogMode         string   `json:"catalogMode"`
-	Brand               string   `json:"brand"`
-	Name                string   `json:"name"`
-	Family              string   `json:"family"`
-	Description         string   `json:"description"`
-	Tags                []string `json:"tags"`
-	NotesTop            []string `json:"notesTop"`
-	NotesHeart          []string `json:"notesHeart"`
-	NotesBase           []string `json:"notesBase"`
-	Seasons             []string `json:"seasons"`
-	DayNight            []string `json:"dayNight"`
-	BasePrice           float64  `json:"basePrice"`
-	BaseVolume          int      `json:"baseVolume"`
-	Sillage             int      `json:"sillage"`
-	Longevity           int      `json:"longevity"`
-	ImageURL            string   `json:"image"`
-	SearchNameRu        string   `json:"searchNameRu"`
-	IsHit               bool     `json:"isHit"`
-	OrderCount          int      `json:"orderCount"`
-	InStock             bool     `json:"inStock"`
-	Currency            string   `json:"currency"`
-	Popularity          int      `json:"popularity"`
-	PopularityMonth     int      `json:"popularityMonth"`
-	PopularityMonthKey  string   `json:"popularityMonthKey"`
-	ReviewAvg           float64  `json:"reviewAvg"`
-	ReviewCount         int      `json:"reviewCount"`
-	CreatedAt           string   `json:"createdAt,omitempty"`
-	UpdatedAt           string   `json:"updatedAt,omitempty"`
+	ID                 string   `json:"id"`
+	CatalogMode        string   `json:"catalogMode"`
+	Brand              string   `json:"brand"`
+	Name               string   `json:"name"`
+	Family             string   `json:"family"`
+	Description        string   `json:"description"`
+	Tags               []string `json:"tags"`
+	NotesTop           []string `json:"notesTop"`
+	NotesHeart         []string `json:"notesHeart"`
+	NotesBase          []string `json:"notesBase"`
+	Seasons            []string `json:"seasons"`
+	DayNight           []string `json:"dayNight"`
+	BasePrice          float64  `json:"basePrice"`
+	BaseVolume         int      `json:"baseVolume"`
+	Sillage            int      `json:"sillage"`
+	Longevity          int      `json:"longevity"`
+	ImageURL           string   `json:"image"`
+	SearchNameRu       string   `json:"searchNameRu"`
+	IsHit              bool     `json:"isHit"`
+	OrderCount         int      `json:"orderCount"`
+	InStock            bool     `json:"inStock"`
+	StockQty           *int     `json:"stockQty,omitempty"`
+	Currency           string   `json:"currency"`
+	Popularity         int      `json:"popularity"`
+	PopularityMonth    int      `json:"popularityMonth"`
+	PopularityMonthKey string   `json:"popularityMonthKey"`
+	ReviewAvg          float64  `json:"reviewAvg"`
+	ReviewCount        int      `json:"reviewCount"`
+	CreatedAt          string   `json:"createdAt,omitempty"`
+	UpdatedAt          string   `json:"updatedAt,omitempty"`
 }
 
 type OrderItem struct {
@@ -61,6 +62,7 @@ type Order struct {
 	IsAnonymous     bool        `json:"isAnonymous"`
 	Email           string      `json:"email"`
 	DisplayName     string      `json:"displayName"`
+	Phone           string      `json:"phone"`
 	Items           []OrderItem `json:"items"`
 	Total           float64     `json:"total"`
 	Currency        string      `json:"currency"`
@@ -80,4 +82,20 @@ type Review struct {
 	IsAnonymous bool   `json:"isAnonymous"`
 	CreatedAt   string `json:"createdAt"`
 	UpdatedAt   string `json:"updatedAt"`
+}
+
+type Preset struct {
+	ID         string   `json:"id"`
+	Title      string   `json:"title"`
+	Subtitle   string   `json:"subtitle"`
+	Notes      string   `json:"notes"`
+	Groups     []PresetGroup `json:"groups"`
+}
+
+type PresetGroup struct {
+	ID         string   `json:"id"`
+	Title      string   `json:"title"`
+	Subtitle   string   `json:"subtitle"`
+	Notes      string   `json:"notes"`
+	PerfumeIDs []string `json:"perfumeIds"`
 }

@@ -10,7 +10,7 @@ function buildOrderItems(items) {
   }));
 }
 
-export async function createOrder({ user, items, total, channel, delivery }) {
+export async function createOrder({ user, items, total, channel, delivery, contact }) {
   const uid = user?.uid || null;
   if (!uid) throw new Error("no uid");
 
@@ -23,6 +23,11 @@ export async function createOrder({ user, items, total, channel, delivery }) {
     total: Number(total) || 0,
     currency,
     channel: String(channel || ""),
+    contact: {
+      name: String(contact?.name || ""),
+      email: String(contact?.email || ""),
+      phone: String(contact?.phone || ""),
+    },
     delivery: {
       method: deliveryMethod,
       address: deliveryAddress,

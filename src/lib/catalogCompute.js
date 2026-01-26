@@ -119,13 +119,23 @@ function tokenMatches(token, hayToken) {
   return false;
 }
 
-export function computeCatalog({ perfumes, q, mustNotes, avoidNotes, seasons, dayNight, sort }) {
+export function computeCatalog({ perfumes, q, mustNotes, avoidNotes, seasons, dayNight, sort, presetIds }) {
   const query = normalizeSearch(q);
   const queryAlt = translitRuToLat(query);
   const tokens = query ? query.split(" ").filter(Boolean) : [];
   const altTokens = queryAlt ? queryAlt.split(" ").filter(Boolean) : [];
 
-  const raw = perfumes
+  const presetIndex = Array.isArray(presetIds)
+    ? presetIds.reduce((acc, id, idx) => {
+        acc[id] = idx;
+        return acc;
+      }, {})
+    : {};
+  const base = Array.isArray(presetIds) && presetIds.length
+    ? presetIds.map((id) => perfumes.find((p) => p.id === id)).filter(Boolean)
+    : perfumes;
+
+  const raw = base
     .map((p) => ({ perfume: p, score: scorePerfume(p, mustNotes, avoidNotes, seasons, dayNight) }))
     .filter(({ perfume }) => {
       if (!query) return true;
@@ -181,6 +191,11 @@ export function computeCatalog({ perfumes, q, mustNotes, avoidNotes, seasons, da
   const filtered = raw.filter((x) => x.score >= minScore);
 
   const sorted = [...filtered].sort((a, b) => {
+    if (sort === "preset" && presetIds && presetIds.length) {
+      const ai = presetIndex[a.perfume.id] ?? 999999;
+      const bi = presetIndex[b.perfume.id] ?? 999999;
+      return ai - bi;
+    }
     if (sort === "hits") {
       const d = (Number(b.perfume.orderCount || 0) - Number(a.perfume.orderCount || 0));
       return d !== 0 ? d : b.score - a.score;

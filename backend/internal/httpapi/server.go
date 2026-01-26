@@ -1,15 +1,20 @@
 package httpapi
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
+	"image/jpeg"
+	"image/png"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -22,6 +27,12 @@ type Server struct {
 	cfg       app.Config
 	db        *sql.DB
 	jwtSecret []byte
+	statsMu   sync.Mutex
+	statsHits map[string]statsWindow
+	statsEventMu   sync.Mutex
+	statsEventHits map[string]time.Time
+	authMu    sync.Mutex
+	authHits  map[string]statsWindow
 }
 
 type ctxKey int
@@ -44,8 +55,20 @@ type authClaims struct {
 	jwt.RegisteredClaims
 }
 
+type statsWindow struct {
+	count int
+	reset time.Time
+}
+
 func NewServer(cfg app.Config, db *sql.DB) *Server {
-	return &Server{cfg: cfg, db: db, jwtSecret: []byte(cfg.JWTSecret)}
+	return &Server{
+		cfg:       cfg,
+		db:        db,
+		jwtSecret: []byte(cfg.JWTSecret),
+		statsHits: make(map[string]statsWindow),
+		statsEventHits: make(map[string]time.Time),
+		authHits:  make(map[string]statsWindow),
+	}
 }
 
 func (s *Server) Routes() http.Handler {
@@ -64,6 +87,8 @@ func (s *Server) Routes() http.Handler {
 		r.Post("/register", s.handleRegister)
 		r.Post("/login", s.handleLogin)
 		r.Post("/guest", s.handleGuest)
+		r.Post("/refresh", s.handleRefresh)
+		r.Post("/logout", s.handleLogout)
 		r.With(s.requireAuth).Get("/me", s.handleMe)
 	})
 
@@ -88,6 +113,13 @@ func (s *Server) Routes() http.Handler {
 
 	r.Route("/api/users", func(r chi.Router) {
 		r.With(s.requireAdmin).Get("/", s.handleListUsers)
+		r.With(s.requireAdmin).Put("/{id}/admin", s.handleSetUserAdmin)
+		r.With(s.requireAdmin).Delete("/{id}", s.handleDeleteUser)
+	})
+
+	r.Route("/api/stock", func(r chi.Router) {
+		r.With(s.requireAdmin).Get("/", s.handleStockReport)
+		r.With(s.requireAdmin).Put("/{id}", s.handleUpdateStock)
 	})
 
 	r.Route("/api/cart", func(r chi.Router) {
@@ -106,6 +138,13 @@ func (s *Server) Routes() http.Handler {
 		r.Get("/{perfumeId}/summary", s.handleReviewSummary)
 		r.With(s.requireAuth).Put("/{perfumeId}/{reviewId}", s.handleUpsertReview)
 		r.With(s.requireAuth).Delete("/{perfumeId}/{reviewId}", s.handleDeleteReview)
+	})
+
+	r.Route("/api/presets", func(r chi.Router) {
+		r.Get("/", s.handleListPresets)
+		r.With(s.requireAdmin).Post("/", s.handleUpsertPreset)
+		r.With(s.requireAdmin).Put("/{id}", s.handleUpsertPreset)
+		r.With(s.requireAdmin).Delete("/{id}", s.handleDeletePreset)
 	})
 
 	r.Post("/api/stats", s.handleLogStat)
@@ -183,6 +222,9 @@ func (s *Server) parseAuth(r *http.Request) (authUser, error) {
 	tokenStr := strings.TrimSpace(parts[1])
 	claims := &authClaims{}
 	token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
+		if token.Method != jwt.SigningMethodHS256 {
+			return nil, errors.New("invalid token method")
+		}
 		return s.jwtSecret, nil
 	})
 	if err != nil || !token.Valid {
@@ -227,13 +269,15 @@ func readJSON(r *http.Request, v interface{}) error {
 }
 
 func (s *Server) handleUploadPerfumeImage(w http.ResponseWriter, r *http.Request) {
+	const maxUploadSize = 10 << 20
 	perfumeID := chi.URLParam(r, "id")
 	if perfumeID == "" {
 		writeError(w, http.StatusBadRequest, "missing perfume id")
 		return
 	}
 
-	if err := r.ParseMultipartForm(12 << 20); err != nil {
+	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
+	if err := r.ParseMultipartForm(maxUploadSize); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid form")
 		return
 	}
@@ -243,6 +287,27 @@ func (s *Server) handleUploadPerfumeImage(w http.ResponseWriter, r *http.Request
 		return
 	}
 	defer file.Close()
+	if header.Size > maxUploadSize {
+		writeError(w, http.StatusBadRequest, "file too large")
+		return
+	}
+
+	head := make([]byte, 512)
+	n, err := file.Read(head)
+	if err != nil && !errors.Is(err, io.EOF) {
+		writeError(w, http.StatusBadRequest, "invalid file")
+		return
+	}
+	head = head[:n]
+	fileType := http.DetectContentType(head)
+	switch fileType {
+	case "image/jpeg", "image/png", "image/webp", "image/gif":
+	default:
+		writeError(w, http.StatusBadRequest, "unsupported file type")
+		return
+	}
+
+	reader := io.MultiReader(bytes.NewReader(head), file)
 
 	safeName := sanitizeFilename(header.Filename)
 	stamp := time.Now().UnixMilli()
@@ -254,16 +319,42 @@ func (s *Server) handleUploadPerfumeImage(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	out, err := os.Create(absPath)
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "cannot save file")
-		return
-	}
-	defer out.Close()
-
-	if _, err := io.Copy(out, file); err != nil {
-		writeError(w, http.StatusInternalServerError, "cannot save file")
-		return
+	if fileType == "image/jpeg" || fileType == "image/png" {
+		img, _, err := image.Decode(reader)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid image")
+			return
+		}
+		img = resizeImage(img, 1600)
+		out, err := os.Create(absPath)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "cannot save file")
+			return
+		}
+		defer out.Close()
+		if fileType == "image/png" {
+			enc := png.Encoder{CompressionLevel: png.BestCompression}
+			if err := enc.Encode(out, img); err != nil {
+				writeError(w, http.StatusInternalServerError, "cannot save file")
+				return
+			}
+		} else {
+			if err := jpeg.Encode(out, img, &jpeg.Options{Quality: 82}); err != nil {
+				writeError(w, http.StatusInternalServerError, "cannot save file")
+				return
+			}
+		}
+	} else {
+		out, err := os.Create(absPath)
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "cannot save file")
+			return
+		}
+		defer out.Close()
+		if _, err := io.Copy(out, reader); err != nil {
+			writeError(w, http.StatusInternalServerError, "cannot save file")
+			return
+		}
 	}
 
 	url := "/uploads/" + filepath.ToSlash(relPath)
@@ -283,4 +374,38 @@ func sanitizeFilename(name string) string {
 		return '_'
 	}, base)
 	return out
+}
+
+func resizeImage(img image.Image, maxSize int) image.Image {
+	b := img.Bounds()
+	w, h := b.Dx(), b.Dy()
+	if w <= maxSize && h <= maxSize {
+		return img
+	}
+	if w == 0 || h == 0 {
+		return img
+	}
+	var nw, nh int
+	if w >= h {
+		nw = maxSize
+		nh = int(float64(h) * float64(maxSize) / float64(w))
+	} else {
+		nh = maxSize
+		nw = int(float64(w) * float64(maxSize) / float64(h))
+	}
+	dst := image.NewRGBA(image.Rect(0, 0, nw, nh))
+	for y := 0; y < nh; y++ {
+		sy := int(float64(y) * float64(h) / float64(nh))
+		if sy >= h {
+			sy = h - 1
+		}
+		for x := 0; x < nw; x++ {
+			sx := int(float64(x) * float64(w) / float64(nw))
+			if sx >= w {
+				sx = w - 1
+			}
+			dst.Set(x, y, img.At(b.Min.X+sx, b.Min.Y+sy))
+		}
+	}
+	return dst
 }

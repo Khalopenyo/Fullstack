@@ -1,6 +1,8 @@
 export const CATALOG_PRESETS = [
   {
-    title: "Лето • свежий цитрус",
+    title: "Лето",
+    subtitle: "Свежий цитрус",
+    notes: "Бергамот • Лимон • Нероли",
     seasons: ["Лето"],
     dayNight: ["День"],
     mustNotes: ["Бергамот", "Лимон", "Нероли"],
@@ -8,7 +10,9 @@ export const CATALOG_PRESETS = [
     sort: "match",
   },
   {
-    title: "Осень • древесность",
+    title: "Осень",
+    subtitle: "Тёплая древесность",
+    notes: "Кедр • Сандал • Тонка",
     seasons: ["Осень"],
     dayNight: [],
     mustNotes: ["Кедр", "Сандал", "Тонка"],
@@ -16,7 +20,9 @@ export const CATALOG_PRESETS = [
     sort: "match",
   },
   {
-    title: "Зима • пряный вечер",
+    title: "Зима",
+    subtitle: "Пряный вечер",
+    notes: "Ваниль • Амбра • Кардамон",
     seasons: ["Зима"],
     dayNight: ["Ночь"],
     mustNotes: ["Ваниль", "Амбра", "Кардамон"],
@@ -24,7 +30,9 @@ export const CATALOG_PRESETS = [
     sort: "match",
   },
   {
-    title: "Весна • цветочная нежность",
+    title: "Весна",
+    subtitle: "Цветочная нежность",
+    notes: "Пион • Роза • Жасмин",
     seasons: ["Весна"],
     dayNight: ["День"],
     mustNotes: ["Пион", "Роза", "Жасмин"],

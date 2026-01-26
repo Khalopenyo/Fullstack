@@ -7,16 +7,14 @@ import { useAuth } from "../state/auth";
 import { clamp } from "../lib/utils";
 import { THEME } from "../data/theme";
 import { ALL_NOTES_GROUPS} from "../data/perfumes";
-import { CATALOG_PRESETS } from "../data/catalogPresets";
 
 import { buildAllNotes, buildDefaultVolumeById } from "../lib/catalog";
-import { computeCatalog } from "../lib/catalogCompute";
 import { setCanonical, setMeta, setOpenGraphImage } from "../lib/seo";
 
 import { logStatEvent } from "../services/statsRepo";
 import { computeReviewSummary } from "../services/reviewsRepo";
-
-
+import { listPresets } from "../services/presetsRepo";
+import { fetchPerfumesPage } from "../services/perfumesRepo";
 import PerfumeCard from "../components/PerfumeCard";
 import CatalogFilters from "../components/Filters";
 import MobileFiltersSheet from "../components/MobileFiltersSheet";
@@ -33,7 +31,7 @@ export default function CatalogPage() {
   const navigate = useNavigate();
   const { openAuthModal, user } = useAuth();
   const authLabel = user ? (user.isAnonymous ? "Гость" : (user.email || "Аккаунт")) : "Аккаунт";
-  const { cart, favorites, toggleFavorite, addToCart, perfumes, loadingPerfumes, perfumesError, perfumesDiagnostics } = useShop();
+  const { cart, favorites, toggleFavorite, addToCart, perfumes, perfumesError, perfumesDiagnostics } = useShop();
   const cartCount = cart.reduce((sum, x) => sum + (Number(x.qty) || 0), 0);
 
   const allNotes = useMemo(() => buildAllNotes(perfumes, ALL_NOTES_GROUPS), [perfumes]);
@@ -54,6 +52,23 @@ useEffect(() => {
   setOpenGraphImage(window.location.origin + "/logo192.png");
 }, []);
 
+useEffect(() => {
+  let alive = true;
+  (async () => {
+    try {
+      const data = await listPresets();
+      if (!alive) return;
+      setPresetsData(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error(e);
+      if (alive) setPresetsData([]);
+    }
+  })();
+  return () => {
+    alive = false;
+  };
+}, []);
+
 
   const getVolume = (id) => (volumeById[id] != null ? volumeById[id] : 50);
   const getMix = (id) => (mixById[id] != null ? mixById[id] : "60/40");
@@ -71,6 +86,10 @@ useEffect(() => {
   const [dayNight, setDayNight] = useState([]);
   const [q, setQ] = useState("");
   const deferredQ = useDeferredValue(q);
+  const [presetIds, setPresetIds] = useState([]);
+  const [activePresetId, setActivePresetId] = useState("");
+  const [activeGroupId, setActiveGroupId] = useState("");
+  const [presetsData, setPresetsData] = useState([]);
 
   const searchSuggestions = useMemo(() => {
     const normalizeSearch = (input) =>
@@ -154,6 +173,10 @@ useEffect(() => {
   // Пагинация (чтобы каталог не превращался в бесконечную колонну)
   const PAGE_SIZE = 6; // поменяй на 8/16/24 если нужно
   const [page, setPage] = useState(1);
+  const [pageItems, setPageItems] = useState([]);
+  const [pageTotal, setPageTotal] = useState(0);
+  const [pageLoading, setPageLoading] = useState(false);
+  const [pageError, setPageError] = useState(null);
 
   const autoHitIds = useMemo(() => {
     const withCounts = (perfumes || [])
@@ -170,37 +193,57 @@ useEffect(() => {
   const activeVolume = activePerfume ? getVolume(activePerfume.id) : 50;
   const activeMix = activePerfume ? getMix(activePerfume.id) : "60/40";
 
-  const computed = useMemo(
-    () =>
-      computeCatalog({
-        perfumes,
-        q: deferredQ,
-        mustNotes,
-        avoidNotes,
-        seasons,
-        dayNight,
-        sort,
-        hitIds: autoHitIds,
-      }),
-    [perfumes, deferredQ, mustNotes, avoidNotes, seasons, dayNight, sort, autoHitIds]
-  );
-
   // если поменяли фильтры/поиск/сортировку — возвращаемся на 1 страницу
   useEffect(() => {
     setPage(1);
-  }, [q, sort, mustNotes, avoidNotes, seasons, dayNight]);
+  }, [q, sort, mustNotes, avoidNotes, seasons, dayNight, presetIds]);
 
-  const totalPages = Math.max(1, Math.ceil((computed.total || 0) / PAGE_SIZE));
+  useEffect(() => {
+    let alive = true;
+    setPageLoading(true);
+    setPageError(null);
+    fetchPerfumesPage({
+      mode: "retail",
+      page,
+      pageSize: PAGE_SIZE,
+      q: deferredQ,
+      mustNotes,
+      avoidNotes,
+      seasons,
+      dayNight,
+      sort,
+      presetIds,
+    })
+      .then((data) => {
+        if (!alive) return;
+        const items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+        setPageItems(items);
+        setPageTotal(Number(data?.total || items.length || 0));
+      })
+      .catch((e) => {
+        console.error(e);
+        if (!alive) return;
+        setPageItems([]);
+        setPageTotal(0);
+        setPageError(e);
+      })
+      .finally(() => {
+        if (!alive) return;
+        setPageLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [page, PAGE_SIZE, deferredQ, mustNotes, avoidNotes, seasons, dayNight, sort, presetIds]);
+
+  const totalPages = Math.max(1, Math.ceil((pageTotal || 0) / PAGE_SIZE));
 
   // если текущая страница стала больше, чем доступно (например, результатов стало меньше)
   useEffect(() => {
     setPage((p) => clamp(p, 1, totalPages));
   }, [totalPages]);
 
-  const pagedItems = useMemo(() => {
-    const start = (page - 1) * PAGE_SIZE;
-    return computed.items.slice(start, start + PAGE_SIZE);
-  }, [computed.items, page]);
+  const pagedItems = pageItems;
 
   const [reviewSummaries, setReviewSummaries] = useState({});
 
@@ -215,7 +258,7 @@ useEffect(() => {
 
     (async () => {
       const entries = await Promise.all(
-        pagedItems.map(async ({ perfume }) => {
+        pagedItems.map(async (perfume) => {
           const summary = await computeReviewSummary(perfume?.id);
           return [perfume?.id, summary];
         })
@@ -242,27 +285,63 @@ useEffect(() => {
     setDayNight([]);
     setQ("");
     setSort("popular");
+    setPresetIds([]);
+    setActivePresetId("");
+    setActiveGroupId("");
   };
 
   const toggleSeason = (s) => setSeasons((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
   const toggleDayNight = (d) => setDayNight((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]));
 
   const presets = useMemo(() => {
-    return CATALOG_PRESETS.map((p) => ({
+    return (presetsData || []).map((p) => ({
+      id: p.id,
       title: p.title,
-      apply: () => {
-        setSeasons(p.seasons);
-        setDayNight(p.dayNight);
-        setMustNotes(p.mustNotes);
-        setAvoidNotes(p.avoidNotes);
-        setSort(p.sort);
-      },
+      subtitle: p.subtitle,
+      notes: p.notes,
+      groups: Array.isArray(p.groups)
+        ? p.groups.map((g) => ({
+            id: g.id,
+            title: g.title,
+            subtitle: g.subtitle,
+            notes: g.notes,
+            perfumeIds: Array.isArray(g.perfumeIds) ? g.perfumeIds : [],
+          }))
+        : [],
     }));
-  }, []);
+  }, [presetsData]);
+
+  const onSelectPreset = (preset) => {
+    setActivePresetId(preset?.id || "");
+    setActiveGroupId("");
+    setPresetIds([]);
+    setQ("");
+    setMustNotes([]);
+    setAvoidNotes([]);
+    setSeasons([]);
+    setDayNight([]);
+  };
+
+  const onSelectGroup = (preset, group) => {
+    const nextIds = Array.isArray(group?.perfumeIds) ? group.perfumeIds : [];
+    setPresetIds(nextIds);
+    setActivePresetId(preset?.id || "");
+    setActiveGroupId(group?.id || group?.title || "");
+    setQ("");
+    setMustNotes([]);
+    setAvoidNotes([]);
+    setSeasons([]);
+    setDayNight([]);
+    setSort("preset");
+  };
 
   const filtersNode = (
     <CatalogFilters
       presets={presets}
+      activePresetId={activePresetId}
+      activeGroupId={activeGroupId}
+      onSelectPreset={onSelectPreset}
+      onSelectGroup={onSelectGroup}
       seasons={seasons}
       toggleSeason={toggleSeason}
       dayNight={dayNight}
@@ -324,7 +403,7 @@ useEffect(() => {
           authLabel={authLabel}
           />
 
-         {perfumesDiagnostics?.summary?.warnings ? (
+          {perfumesDiagnostics?.summary?.warnings ? (
             <div
               className="mt-4 rounded-2xl border px-4 py-3 text-sm"
               style={{ borderColor: "rgba(255,200,120,0.35)", background: "rgba(255,200,120,0.06)" }}
@@ -333,13 +412,15 @@ useEffect(() => {
             </div>
           ) : null}
 
-          {loadingPerfumes ? (
+          
+
+          {pageLoading ? (
   <div className="mt-5 text-sm opacity-70">Загрузка каталога...</div>
-) : perfumesError ? (
+) : pageError || perfumesError ? (
   <div className="mt-5 text-sm opacity-70">
     Не получилось загрузить каталог. Проверь API и подключение.
   </div>
-) : computed.total === 0 ? (
+) : pageTotal === 0 ? (
   <EmptyResults
     onRelax={() => {
       setAvoidNotes([]);
@@ -358,11 +439,10 @@ useEffect(() => {
 
     <div className="mt-5 grid gap-4 lg:grid-cols-2">
       <AnimatePresence mode="wait" initial={false}>
-        {pagedItems.map(({ perfume, score }) => (
+        {pagedItems.map((perfume) => (
           <PerfumeCard
             key={perfume.id}
             perfume={{ ...perfume, isHit: perfume.isHit || autoHitIds.has(perfume.id) }}
-            score={score}
             liked={favorites.includes(perfume.id)}
             reviewSummary={reviewSummaries[perfume.id]}
             volume={getVolume(perfume.id)}
@@ -385,7 +465,7 @@ useEffect(() => {
   </>
 )}
 
-          {computed.total > PAGE_SIZE ? (
+          {pageTotal > PAGE_SIZE ? (
             <div className="mt-5">
               <PaginationBar page={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
@@ -397,7 +477,7 @@ useEffect(() => {
 
       <MobileFiltersSheet
         open={filtersOpenMobile}
-        total={computed.total}
+        total={pageTotal}
         onClose={() => setFiltersOpenMobile(false)}
         onClear={clearAll}
       >

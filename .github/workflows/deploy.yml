@@ -24,5 +24,11 @@ jobs:
             fi
             cd "${{ secrets.VPS_APP_PATH }}"
             git pull
-            cp deploy/.env.prod.example .env.prod || true
+            if [ ! -f .env.prod ]; then
+              cp deploy/.env.prod.example .env.prod
+            fi
+            set -a
+            source .env.prod
+            set +a
+            bash deploy/run_migrations.sh
             docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build

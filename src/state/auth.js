@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { guest, login, me, register, signOut } from "../services/authRepo";
+import { guest, login, me, refresh, register, logout } from "../services/authRepo";
 import { getToken } from "../services/api";
 
 const AuthContext = createContext(null);
@@ -41,11 +41,15 @@ export function AuthProvider({ children }) {
           const current = await me();
           if (alive) setUser(normalizeUser(current));
         } else {
-          const guestUser = await guest();
-          if (alive) setUser(normalizeUser(guestUser));
+          const refreshed = await refresh();
+          if (alive && refreshed) {
+            setUser(normalizeUser(refreshed));
+          } else {
+            const guestUser = await guest();
+            if (alive) setUser(normalizeUser(guestUser));
+          }
         }
       } catch (e) {
-        signOut();
         try {
           const guestUser = await guest();
           if (alive) setUser(normalizeUser(guestUser));
@@ -82,7 +86,7 @@ export function AuthProvider({ children }) {
     setBusy(true);
     setErrorText("");
     try {
-      signOut();
+      await logout();
       const guestUser = await guest();
       setUser(normalizeUser(guestUser));
     } catch (e) {

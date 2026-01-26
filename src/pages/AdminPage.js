@@ -8,10 +8,45 @@ import { THEME } from "../data/theme";
 import { useAuth } from "../state/auth";
 import { fetchCatalogWithDiagnostics, upsertPerfume, deletePerfume } from "../services/perfumesRepo";
 import { uploadPerfumeImage } from "../services/storageRepo";
-import { listOrders, updateOrder, deleteOrder, listUsers } from "../services/adminApi";
+import { listOrders, updateOrder, deleteOrder, listUsers, setUserAdmin, deleteUser, listPresets, savePreset, deletePreset, listStock, updateStock } from "../services/adminApi";
+import PaginationBar from "../components/PaginationBar";
 
 const SEASONS = ["Зима", "Весна", "Лето", "Осень"];
 const DAYNIGHT = ["Утро", "День", "Вечер", "Ночь"];
+const PRESET_TEMPLATES = [
+  {
+    title: "Лето",
+    groups: [
+      { title: "Свежий цитрус", subtitle: "", notes: "", perfumeIds: [] },
+      { title: "Морская свежесть", subtitle: "", notes: "", perfumeIds: [] },
+      { title: "Фруктовый лёд", subtitle: "", notes: "", perfumeIds: [] },
+    ],
+  },
+  {
+    title: "Осень",
+    groups: [
+      { title: "Древесность", subtitle: "", notes: "", perfumeIds: [] },
+      { title: "Тёплая амбра", subtitle: "", notes: "", perfumeIds: [] },
+      { title: "Пряный чай", subtitle: "", notes: "", perfumeIds: [] },
+    ],
+  },
+  {
+    title: "Зима",
+    groups: [
+      { title: "Пряный вечер", subtitle: "", notes: "", perfumeIds: [] },
+      { title: "Смолы и ваниль", subtitle: "", notes: "", perfumeIds: [] },
+      { title: "Гурманика", subtitle: "", notes: "", perfumeIds: [] },
+    ],
+  },
+  {
+    title: "Весна",
+    groups: [
+      { title: "Цветочная нежность", subtitle: "", notes: "", perfumeIds: [] },
+      { title: "Зелёная свежесть", subtitle: "", notes: "", perfumeIds: [] },
+      { title: "Пудровый мускус", subtitle: "", notes: "", perfumeIds: [] },
+    ],
+  },
+];
 
 function splitList(s) {
   return String(s || "")
@@ -194,6 +229,7 @@ export default function AdminPage() {
   const nav = useNavigate();
   const { user, authReady, openAuthModal } = useAuth();
 
+  const ADMIN_TAB_KEY = "admin:tab";
   const uid = user?.uid || "";
   const sessionLabel = !user ? "—" : user.isAnonymous ? "Гость" : user.email || "Аккаунт";
 
@@ -206,12 +242,63 @@ export default function AdminPage() {
   const [q, setQ] = React.useState("");
   const [visibleCount, setVisibleCount] = React.useState(10);
   const [catalogMode, setCatalogMode] = React.useState("retail");
-  const [adminTab, setAdminTab] = React.useState("catalog");
+  const [adminTab, setAdminTab] = React.useState(() => {
+    try {
+      const saved = localStorage.getItem(ADMIN_TAB_KEY);
+      if (saved === "catalog" || saved === "orders" || saved === "users" || saved === "presets" || saved === "stock") return saved;
+    } catch {
+      // ignore storage failures
+    }
+    return "catalog";
+  });
   const [orders, setOrders] = React.useState([]);
   const [ordersLoading, setOrdersLoading] = React.useState(false);
   const [ordersChannel, setOrdersChannel] = React.useState("all");
+  const [ordersPage, setOrdersPage] = React.useState(1);
+  const [ordersTotal, setOrdersTotal] = React.useState(0);
+  const ORDERS_PAGE_SIZE = 20;
   const [users, setUsers] = React.useState([]);
   const [usersLoading, setUsersLoading] = React.useState(false);
+  const [userBusy, setUserBusy] = React.useState({});
+  const [usersPage, setUsersPage] = React.useState(1);
+  const [usersTotal, setUsersTotal] = React.useState(0);
+  const USERS_PAGE_SIZE = 20;
+  const [stock, setStock] = React.useState([]);
+  const [stockLoading, setStockLoading] = React.useState(false);
+  const [stockQuery, setStockQuery] = React.useState("");
+  const [stockIncludeUnlimited, setStockIncludeUnlimited] = React.useState(true);
+  const [stockLow, setStockLow] = React.useState(5);
+  const [stockSummary, setStockSummary] = React.useState({ total: 0, low: 0, zero: 0, unlimited: 0 });
+  const [stockEdits, setStockEdits] = React.useState({});
+  const [stockBusy, setStockBusy] = React.useState({});
+  const [stockPage, setStockPage] = React.useState(1);
+  const [stockTotal, setStockTotal] = React.useState(0);
+  const STOCK_PAGE_SIZE = 20;
+  const [presets, setPresets] = React.useState([]);
+  const [presetsLoading, setPresetsLoading] = React.useState(false);
+  const [presetDraft, setPresetDraft] = React.useState({
+    title: "",
+    subtitle: "",
+    notes: "",
+    groups: [{ title: "", subtitle: "", notes: "", perfumeIds: [] }],
+  });
+  const [presetEdits, setPresetEdits] = React.useState({});
+  const [presetSearch, setPresetSearch] = React.useState({});
+  const [presetPickerOpen, setPresetPickerOpen] = React.useState({});
+  const [presetsListOpen, setPresetsListOpen] = React.useState(false);
+  const usersCount = usersTotal;
+
+  const applyPresetTemplate = React.useCallback((tpl) => {
+    if (!tpl) return;
+    setPresetDraft({
+      title: tpl.title || "",
+      subtitle: "",
+      notes: "",
+      groups: Array.isArray(tpl.groups) && tpl.groups.length
+        ? tpl.groups.map((g) => ({ ...g, perfumeIds: [] }))
+        : [{ title: "", subtitle: "", notes: "", perfumeIds: [] }],
+    });
+  }, []);
 
   const [editorOpen, setEditorOpen] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
@@ -227,6 +314,7 @@ export default function AdminPage() {
     isHit: false,
     basePrice: 0,
     baseVolume: 50,
+    stockQty: "",
     seasons: [],
     dayNight: [],
     tagsText: "",
@@ -238,6 +326,53 @@ export default function AdminPage() {
     image: "",
     currency: "₽",
   }));
+
+  const normalizeSearch = React.useCallback((value) => {
+    return String(value || "")
+      .toLowerCase()
+      .replace(/ё/g, "е")
+      .replace(/[^a-z0-9а-я\s]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }, []);
+
+  const pickPerfumesForGroup = React.useCallback(
+    (presetTitle, groupTitle, limit = 12) => {
+      const seed = normalizeSearch(`${presetTitle || ""} ${groupTitle || ""}`);
+      const tokens = seed.split(" ").filter((t) => t.length >= 3);
+      if (!tokens.length) return [];
+
+      const scored = (items || [])
+        .map((p) => {
+          const hay = normalizeSearch(
+            [
+              p.brand,
+              p.name,
+              p.family,
+              ...(p.tags || []),
+              ...(p.notes?.top || []),
+              ...(p.notes?.heart || []),
+              ...(p.notes?.base || []),
+              ...(p.seasons || []),
+              ...(p.dayNight || []),
+            ].join(" ")
+          );
+          if (!hay) return null;
+          let score = 0;
+          tokens.forEach((t) => {
+            if (hay.includes(t)) score += 2;
+          });
+          const seasonToken = ["лето", "осень", "зима", "весна"].find((s) => seed.includes(s));
+          if (seasonToken && hay.includes(seasonToken)) score += 2;
+          return score > 0 ? { id: p.id, score, name: p.name || "" } : null;
+        })
+        .filter(Boolean)
+        .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+
+      return scored.slice(0, limit).map((x) => x.id);
+    },
+    [items, normalizeSearch]
+  );
 
   const filtered = React.useMemo(() => {
     const query = (q || "").trim().toLowerCase();
@@ -259,6 +394,14 @@ export default function AdminPage() {
     });
   }, [items, q]);
 
+  const perfumeIndex = React.useMemo(() => {
+    const map = new Map();
+    (items || []).forEach((p) => {
+      map.set(p.id, p);
+    });
+    return map;
+  }, [items]);
+
   const catalogLabel = catalogMode === "wholesale" ? "Оптовый каталог" : "Каталог";
   const collectionName = catalogMode === "wholesale" ? "wholesale_perfumes" : "perfumes";
   const idPrefix = catalogMode === "wholesale" ? "w" : "p";
@@ -266,6 +409,51 @@ export default function AdminPage() {
   React.useEffect(() => {
     setVisibleCount(10);
   }, [q, items]);
+
+  React.useEffect(() => {
+    setOrdersPage(1);
+  }, [ordersChannel]);
+
+  React.useEffect(() => {
+    setUsersPage(1);
+  }, [q]);
+
+  React.useEffect(() => {
+    setStockPage(1);
+  }, [stockQuery, stockIncludeUnlimited, stockLow]);
+
+  React.useEffect(() => {
+    if (adminTab !== "stock") return;
+    setStockLoading(true);
+    listStock({ q: stockQuery, includeUnlimited: stockIncludeUnlimited, low: stockLow, page: stockPage, pageSize: STOCK_PAGE_SIZE })
+      .then((data) => {
+        const items = Array.isArray(data?.items) ? data.items : [];
+        setStock(items);
+        const edits = {};
+        items.forEach((p) => {
+          edits[p.id] = p.stockQty == null ? "" : String(p.stockQty);
+        });
+        setStockEdits(edits);
+        setStockSummary(data?.summary || { total: items.length, low: 0, zero: 0, unlimited: 0 });
+        setStockTotal(Number(data?.total || items.length || 0));
+      })
+      .catch((e) => {
+        console.error(e);
+        setStock([]);
+        setStockEdits({});
+        setStockSummary({ total: 0, low: 0, zero: 0, unlimited: 0 });
+        setStockTotal(0);
+      })
+      .finally(() => setStockLoading(false));
+  }, [adminTab, stockQuery, stockIncludeUnlimited, stockLow, stockPage]);
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem(ADMIN_TAB_KEY, adminTab);
+    } catch {
+      // ignore storage failures
+    }
+  }, [adminTab]);
 
   const load = React.useCallback(async () => {
     setLoading(true);
@@ -294,15 +482,18 @@ export default function AdminPage() {
   const loadOrders = React.useCallback(async () => {
     setOrdersLoading(true);
     try {
-      const list = await listOrders();
-      setOrders(Array.isArray(list) ? list : []);
+      const data = await listOrders({ page: ordersPage, pageSize: ORDERS_PAGE_SIZE, channel: ordersChannel });
+      const list = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+      setOrders(list);
+      setOrdersTotal(Number(data?.total || list.length || 0));
     } catch (e) {
       console.error(e);
       setOrders([]);
+      setOrdersTotal(0);
     } finally {
       setOrdersLoading(false);
     }
-  }, []);
+  }, [ordersPage, ordersChannel]);
 
   const setOrderFulfilled = React.useCallback(async (orderId, fulfilled) => {
     if (!orderId) return;
@@ -337,15 +528,314 @@ export default function AdminPage() {
   const loadUsers = React.useCallback(async () => {
     setUsersLoading(true);
     try {
-      const list = await listUsers();
-      setUsers(Array.isArray(list) ? list : []);
+      const data = await listUsers({ page: usersPage, pageSize: USERS_PAGE_SIZE, q });
+      const list = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+      setUsers(list);
+      setUsersTotal(Number(data?.total || list.length || 0));
     } catch (e) {
       console.error(e);
       setUsers([]);
+      setUsersTotal(0);
     } finally {
       setUsersLoading(false);
     }
+  }, [usersPage, q]);
+
+  const loadPresets = React.useCallback(async () => {
+    setPresetsLoading(true);
+    try {
+      const list = await listPresets();
+      const safe = Array.isArray(list) ? list : [];
+      setPresets(safe);
+      const edits = {};
+      safe.forEach((p) => {
+        edits[p.id] = {
+          title: p.title || "",
+          subtitle: p.subtitle || "",
+          notes: p.notes || "",
+          groups: Array.isArray(p.groups)
+            ? p.groups.map((g) => ({
+                title: g.title || "",
+                subtitle: g.subtitle || "",
+                notes: g.notes || "",
+                perfumeIds: Array.isArray(g.perfumeIds) ? g.perfumeIds : [],
+              }))
+            : [],
+        };
+      });
+      setPresetEdits(edits);
+    } catch (e) {
+      console.error(e);
+      setPresets([]);
+      setPresetEdits({});
+    } finally {
+      setPresetsLoading(false);
+    }
   }, []);
+
+  const updateUserAdmin = React.useCallback(
+    async (target, nextValue) => {
+      if (!target?.id) return;
+      if (target.id === uid && !nextValue) {
+        const ok = window.confirm("Снять у себя админ-доступ?");
+        if (!ok) return;
+      }
+      setUserBusy((prev) => ({ ...prev, [target.id]: true }));
+      try {
+        await setUserAdmin(target.id, nextValue);
+        setUsers((prev) =>
+          prev.map((u) => (u.id === target.id ? { ...u, isAdmin: Boolean(nextValue) } : u))
+        );
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setUserBusy((prev) => {
+          const copy = { ...prev };
+          delete copy[target.id];
+          return copy;
+        });
+      }
+    },
+    [uid]
+  );
+
+  const removeUser = React.useCallback(async (target) => {
+    if (!target?.id) return;
+    const label = target.email || target.displayName || target.id;
+    if (!window.confirm(`Удалить пользователя ${label}? Будут удалены заказы, корзина и избранное.`)) return;
+    setUserBusy((prev) => ({ ...prev, [target.id]: true }));
+    try {
+      await deleteUser(target.id);
+      setUsers((prev) => prev.filter((u) => u.id !== target.id));
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setUserBusy((prev) => {
+        const copy = { ...prev };
+        delete copy[target.id];
+        return copy;
+      });
+    }
+  }, []);
+
+  const buildGroupsPayload = React.useCallback((groups) => {
+    return (Array.isArray(groups) ? groups : [])
+      .map((g) => {
+        const perfumeIds = Array.isArray(g.perfumeIds)
+          ? Array.from(new Set(g.perfumeIds.filter(Boolean)))
+          : [];
+        return {
+          title: (g.title || "").trim(),
+          subtitle: (g.subtitle || "").trim(),
+          notes: (g.notes || "").trim(),
+          perfumeIds,
+        };
+      })
+      .filter((g) => g.title || g.subtitle || g.notes || g.perfumeIds.length > 0);
+  }, []);
+
+  const addGroupToDraft = React.useCallback(() => {
+    setPresetDraft((prev) => ({
+      ...prev,
+      groups: [...(prev.groups || []), { title: "", subtitle: "", notes: "", perfumeIds: [] }],
+    }));
+  }, []);
+
+  const removeGroupFromDraft = React.useCallback((idx) => {
+    setPresetDraft((prev) => ({
+      ...prev,
+      groups: (prev.groups || []).filter((_, i) => i !== idx),
+    }));
+  }, []);
+
+  const updateDraftGroupField = React.useCallback((idx, field, value) => {
+    setPresetDraft((prev) => ({
+      ...prev,
+      groups: (prev.groups || []).map((g, i) => (i === idx ? { ...g, [field]: value } : g)),
+    }));
+  }, []);
+
+  const addGroupToPreset = React.useCallback((id) => {
+    setPresetEdits((prev) => {
+      const draft = prev[id];
+      if (!draft) return prev;
+      return {
+        ...prev,
+        [id]: {
+          ...draft,
+          groups: [...(draft.groups || []), { title: "", subtitle: "", notes: "", perfumeIds: [] }],
+        },
+      };
+    });
+  }, []);
+
+  const removeGroupFromPreset = React.useCallback((id, idx) => {
+    setPresetEdits((prev) => {
+      const draft = prev[id];
+      if (!draft) return prev;
+      return {
+        ...prev,
+        [id]: { ...draft, groups: (draft.groups || []).filter((_, i) => i !== idx) },
+      };
+    });
+  }, []);
+
+  const updatePresetGroupField = React.useCallback((id, idx, field, value) => {
+    setPresetEdits((prev) => {
+      const draft = prev[id];
+      if (!draft) return prev;
+      return {
+        ...prev,
+        [id]: {
+          ...draft,
+          groups: (draft.groups || []).map((g, i) => (i === idx ? { ...g, [field]: value } : g)),
+        },
+      };
+    });
+  }, []);
+
+  const addPerfumeToDraftGroup = React.useCallback((idx, perfumeId) => {
+    if (!perfumeId) return;
+    setPresetDraft((prev) => ({
+      ...prev,
+      groups: (prev.groups || []).map((g, i) => {
+        if (i !== idx) return g;
+        const next = Array.from(new Set([...(g.perfumeIds || []), perfumeId]));
+        return { ...g, perfumeIds: next };
+      }),
+    }));
+  }, []);
+
+  const autoFillDraftGroup = React.useCallback(
+    (idx) => {
+      setPresetDraft((prev) => {
+        const presetTitle = prev.title;
+        const nextGroups = (prev.groups || []).map((g, i) => {
+          if (i !== idx) return g;
+          const picked = pickPerfumesForGroup(presetTitle, g.title);
+          const merged = Array.from(new Set([...(g.perfumeIds || []), ...picked])).slice(0, 12);
+          return { ...g, perfumeIds: merged };
+        });
+        return { ...prev, groups: nextGroups };
+      });
+    },
+    [pickPerfumesForGroup]
+  );
+
+  const removePerfumeFromDraftGroup = React.useCallback((idx, perfumeId) => {
+    setPresetDraft((prev) => ({
+      ...prev,
+      groups: (prev.groups || []).map((g, i) => {
+        if (i !== idx) return g;
+        return { ...g, perfumeIds: (g.perfumeIds || []).filter((id) => id !== perfumeId) };
+      }),
+    }));
+  }, []);
+
+  const addPerfumeToPresetGroup = React.useCallback((id, idx, perfumeId) => {
+    if (!perfumeId) return;
+    setPresetEdits((prev) => {
+      const draft = prev[id];
+      if (!draft) return prev;
+      const nextGroups = (draft.groups || []).map((g, i) => {
+        if (i !== idx) return g;
+        const next = Array.from(new Set([...(g.perfumeIds || []), perfumeId]));
+        return { ...g, perfumeIds: next };
+      });
+      return { ...prev, [id]: { ...draft, groups: nextGroups } };
+    });
+  }, []);
+
+  const autoFillPresetGroup = React.useCallback(
+    (id, idx) => {
+      setPresetEdits((prev) => {
+        const draft = prev[id];
+        if (!draft) return prev;
+        const presetTitle = draft.title;
+        const nextGroups = (draft.groups || []).map((g, i) => {
+          if (i !== idx) return g;
+          const picked = pickPerfumesForGroup(presetTitle, g.title);
+          const merged = Array.from(new Set([...(g.perfumeIds || []), ...picked])).slice(0, 12);
+          return { ...g, perfumeIds: merged };
+        });
+        return { ...prev, [id]: { ...draft, groups: nextGroups } };
+      });
+    },
+    [pickPerfumesForGroup]
+  );
+
+  const removePerfumeFromPresetGroup = React.useCallback((id, idx, perfumeId) => {
+    setPresetEdits((prev) => {
+      const draft = prev[id];
+      if (!draft) return prev;
+      const nextGroups = (draft.groups || []).map((g, i) => {
+        if (i !== idx) return g;
+        return { ...g, perfumeIds: (g.perfumeIds || []).filter((pid) => pid !== perfumeId) };
+      });
+      return { ...prev, [id]: { ...draft, groups: nextGroups } };
+    });
+  }, []);
+
+  const setGroupSearchValue = React.useCallback((key, value) => {
+    setPresetSearch((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  const togglePicker = React.useCallback((key) => {
+    setPresetPickerOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+  }, []);
+
+  const saveNewPreset = React.useCallback(async () => {
+    if (!presetDraft.title.trim()) return;
+    const groups = buildGroupsPayload(presetDraft.groups);
+    if (groups.length === 0) return;
+    try {
+      await savePreset({
+        title: presetDraft.title.trim(),
+        subtitle: presetDraft.subtitle.trim(),
+        notes: presetDraft.notes.trim(),
+        groups,
+      });
+      setPresetDraft({ title: "", subtitle: "", notes: "", groups: [{ title: "", subtitle: "", notes: "", perfumeIds: [] }] });
+      await loadPresets();
+    } catch (e) {
+      console.error(e);
+    }
+  }, [presetDraft, buildGroupsPayload, loadPresets]);
+
+  const saveExistingPreset = React.useCallback(
+    async (id) => {
+      const draft = presetEdits[id];
+      if (!draft || !draft.title.trim()) return;
+      const groups = buildGroupsPayload(draft.groups);
+      if (groups.length === 0) return;
+      try {
+        await savePreset({
+          id,
+          title: draft.title.trim(),
+          subtitle: draft.subtitle.trim(),
+          notes: draft.notes.trim(),
+          groups,
+        });
+        await loadPresets();
+      } catch (e) {
+        console.error(e);
+      }
+    },
+    [presetEdits, buildGroupsPayload, loadPresets]
+  );
+
+  const removePreset = React.useCallback(
+    async (id) => {
+      if (!window.confirm("Удалить пресет?")) return;
+      try {
+        await deletePreset(id);
+        await loadPresets();
+      } catch (e) {
+        console.error(e);
+      }
+    },
+    [loadPresets]
+  );
 
   React.useEffect(() => {
     if (!authReady) return;
@@ -354,19 +844,15 @@ export default function AdminPage() {
     loadUsers();
   }, [authReady, isAdmin, adminTab, loadUsers]);
 
-  const filteredOrders = React.useMemo(() => {
-    if (ordersChannel === "all") return orders;
-    return orders.filter((o) => String(o.channel || "").toLowerCase() === ordersChannel);
-  }, [orders, ordersChannel]);
+  React.useEffect(() => {
+    if (!authReady) return;
+    if (!isAdmin) return;
+    if (adminTab !== "presets") return;
+    loadPresets();
+  }, [authReady, isAdmin, adminTab, loadPresets]);
 
-  const filteredUsers = React.useMemo(() => {
-    const queryText = (q || "").trim().toLowerCase();
-    if (!queryText) return users;
-    return users.filter((u) => {
-      const hay = [u.id, u.email, u.displayName].join(" ").toLowerCase();
-      return hay.includes(queryText);
-    });
-  }, [users, q]);
+  const filteredOrders = orders;
+  const filteredUsers = users;
 
   function openNew() {
     const id = nextId(items, idPrefix);
@@ -380,6 +866,7 @@ export default function AdminPage() {
       isHit: false,
       basePrice: 0,
       baseVolume: 50,
+      stockQty: "",
       seasons: [],
       dayNight: [],
       tagsText: "",
@@ -405,6 +892,7 @@ export default function AdminPage() {
       isHit: typeof p.isHit === "boolean" ? p.isHit : false,
       basePrice: Number(p.basePrice ?? p.price ?? 0),
       baseVolume: Number(p.baseVolume ?? p.volume ?? 50),
+      stockQty: p.stockQty ?? "",
       seasons: Array.isArray(p.seasons) ? p.seasons : [],
       dayNight: Array.isArray(p.dayNight) ? p.dayNight : [],
       tagsText: joinList(p.tags),
@@ -435,6 +923,7 @@ export default function AdminPage() {
 
       basePrice: Number(draft.basePrice || 0),
       baseVolume: clampInt(draft.baseVolume, 10, 200, 50),
+      stockQty: draft.stockQty === "" || draft.stockQty == null ? null : Math.max(0, Math.round(Number(draft.stockQty) || 0)),
 
       seasons: (draft.seasons || []).filter((x) => SEASONS.includes(x)),
       dayNight: (draft.dayNight || []).filter((x) => DAYNIGHT.includes(x)),
@@ -600,7 +1089,7 @@ export default function AdminPage() {
               <br />
               2) запомни email,
               <br />
-              3) в базе выставь <b>users.is_admin=true</b> для этого email.
+              3) выполни скрипт <b>backend/scripts/set_admin.sh</b> для этого email.
             </div>
           </div>
         ) : (
@@ -663,12 +1152,44 @@ export default function AdminPage() {
                   >
                     Пользователи
                   </button>
+                  <button
+                    type="button"
+                    className="rounded-full border px-4 py-2 text-sm hover:bg-white/[0.06]"
+                    style={{
+                      borderColor: THEME.border2,
+                      color: THEME.text,
+                      background: adminTab === "stock" ? "rgba(255,255,255,0.06)" : "transparent",
+                    }}
+                    onClick={() => setAdminTab("stock")}
+                  >
+                    Склад
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-full border px-4 py-2 text-sm hover:bg-white/[0.06]"
+                    style={{
+                      borderColor: THEME.border2,
+                      color: THEME.text,
+                      background: adminTab === "presets" ? "rgba(255,255,255,0.06)" : "transparent",
+                    }}
+                    onClick={() => setAdminTab("presets")}
+                  >
+                    Пресеты
+                  </button>
                 </div>
                 <input
-                  disabled={adminTab === "orders"}
+                  disabled={adminTab === "orders" || adminTab === "presets" || adminTab === "stock"}
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
-                  placeholder={adminTab === "users" ? "Поиск по имени / email / UID..." : "Поиск по названию / нотам / тегам..."}
+                  placeholder={
+                    adminTab === "users"
+                      ? "Поиск по имени / email / UID..."
+                      : adminTab === "presets"
+                      ? "Поиск по пресетам отключён"
+                      : adminTab === "stock"
+                      ? "Поиск по складу справа"
+                      : "Поиск по названию / нотам / тегам..."
+                  }
                   className="w-full lg:w-[420px] rounded-full border px-4 py-2 text-sm outline-none"
                   style={{
                     borderColor: THEME.border2,
@@ -680,13 +1201,59 @@ export default function AdminPage() {
                   type="button"
                   className="rounded-full border px-4 py-2 text-sm hover:bg-white/[0.06]"
                   style={{ borderColor: THEME.border2, color: THEME.text }}
-                  onClick={adminTab === "orders" ? loadOrders : adminTab === "users" ? loadUsers : load}
-                  disabled={adminTab === "orders" ? ordersLoading : adminTab === "users" ? usersLoading : loading}
+                  onClick={
+                    adminTab === "orders"
+                      ? loadOrders
+                      : adminTab === "users"
+                      ? loadUsers
+                      : adminTab === "stock"
+                      ? () => {
+                          setStockLoading(true);
+                          listStock({ q: stockQuery, includeUnlimited: stockIncludeUnlimited, low: stockLow })
+                            .then((data) => {
+                              const items = Array.isArray(data?.items) ? data.items : [];
+                              setStock(items);
+                              setStockSummary(data?.summary || { total: items.length, low: 0, zero: 0, unlimited: 0 });
+                            })
+                            .catch((e) => {
+                              console.error(e);
+                              setStock([]);
+                              setStockSummary({ total: 0, low: 0, zero: 0, unlimited: 0 });
+                            })
+                            .finally(() => setStockLoading(false));
+                        }
+                      : adminTab === "presets"
+                      ? loadPresets
+                      : load
+                  }
+                  disabled={
+                    adminTab === "orders"
+                      ? ordersLoading
+                      : adminTab === "users"
+                      ? usersLoading
+                      : adminTab === "stock"
+                      ? stockLoading
+                      : adminTab === "presets"
+                      ? presetsLoading
+                      : loading
+                  }
                 >
                   {adminTab === "orders"
-                    ? (ordersLoading ? "..." : "Обновить")
+                    ? ordersLoading
+                      ? "..."
+                      : "Обновить"
                     : adminTab === "users"
-                    ? (usersLoading ? "..." : "Обновить")
+                    ? usersLoading
+                      ? "..."
+                      : "Обновить"
+                    : adminTab === "stock"
+                    ? stockLoading
+                      ? "..."
+                      : "Обновить"
+                    : adminTab === "presets"
+                    ? presetsLoading
+                      ? "..."
+                      : "Обновить"
                     : loading
                     ? "..."
                     : "Обновить"}
@@ -707,6 +1274,40 @@ export default function AdminPage() {
                     <option value="tg">Telegram</option>
                     <option value="ig">Instagram</option>
                   </select>
+                ) : adminTab === "stock" ? (
+                  <>
+                    <input
+                      value={stockQuery}
+                      onChange={(e) => setStockQuery(e.target.value)}
+                      placeholder="Поиск по складу"
+                      className="rounded-full border px-4 py-2 text-sm outline-none"
+                      style={{
+                        borderColor: THEME.border2,
+                        background: "rgba(255,255,255,0.03)",
+                        color: THEME.text,
+                      }}
+                    />
+                    <label className="inline-flex items-center gap-2 text-xs" style={{ color: THEME.muted }}>
+                      <input
+                        type="checkbox"
+                        checked={stockIncludeUnlimited}
+                        onChange={(e) => setStockIncludeUnlimited(e.target.checked)}
+                      />
+                      Показывать без лимита
+                    </label>
+                    <input
+                      type="number"
+                      value={stockLow}
+                      onChange={(e) => setStockLow(Math.max(1, Number(e.target.value) || 1))}
+                      className="w-24 rounded-full border px-3 py-2 text-sm outline-none"
+                      style={{
+                        borderColor: THEME.border2,
+                        background: "rgba(255,255,255,0.03)",
+                        color: THEME.text,
+                      }}
+                      title="Порог низкого остатка"
+                    />
+                  </>
                 ) : null}
 
                 {diag?.summary?.warnings ? (
@@ -733,6 +1334,15 @@ export default function AdminPage() {
                 >
                   + Новый товар
                 </button>
+              ) : adminTab === "stock" ? (
+                <button
+                  type="button"
+                  className="rounded-full px-5 py-3 text-sm font-semibold"
+                  style={{ background: THEME.accent, color: "#0B0B0F" }}
+                  onClick={openNew}
+                >
+                  + Добавить товар
+                </button>
               ) : null}
             </div>
 
@@ -744,91 +1354,764 @@ export default function AdminPage() {
                 ) : filteredOrders.length === 0 ? (
                   <div className="text-sm opacity-70">Нет заказов</div>
                 ) : (
-                  <div className="grid gap-3">
-                    {filteredOrders.map((o) => (
-                      <div
-                        key={o.id}
-                        className="rounded-3xl border p-4"
-                        style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="text-sm font-semibold">
-                            Заказ {o.id}
-                          </div>
-                          <div className="text-xs" style={{ color: THEME.muted }}>
-                            {o.channel ? `Канал: ${o.channel}` : "Канал: —"}
-                          </div>
-                        </div>
-                        <div className="mt-1 text-xs" style={{ color: THEME.muted }}>
-                          {o.displayName || "Без имени"}
-                          {o.email ? ` · ${o.email}` : ""}
-                          {o.isAnonymous ? " · гость" : ""}
-                        </div>
-                        <div className="mt-3 text-sm">
-                          {(o.items || []).map((it, idx) => (
-                            <div key={idx} className="flex flex-wrap gap-2">
-                              <span>
-                                {it.id} · {it.volume} мл · {it.mix || "60/40"} ×{it.qty}
-                              </span>
-                              <span style={{ color: THEME.muted }}>
-                                — {it.price}{o.currency || "₽"}
-                              </span>
+                  <>
+                    <div className="grid gap-3">
+                      {filteredOrders.map((o) => (
+                        <div
+                          key={o.id}
+                          className="rounded-3xl border p-4"
+                          style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="text-sm font-semibold">
+                              Заказ {o.id}
                             </div>
-                          ))}
+                            <div className="text-xs" style={{ color: THEME.muted }}>
+                              {o.channel ? `Канал: ${o.channel}` : "Канал: —"}
+                            </div>
+                          </div>
+                          <div className="mt-1 text-xs" style={{ color: THEME.muted }}>
+                            {o.displayName || "Без имени"}
+                            {o.email ? ` · ${o.email}` : ""}
+                            {o.phone ? ` · ${o.phone}` : ""}
+                            {o.isAnonymous ? " · гость" : ""}
+                          </div>
+                          <div className="mt-3 text-sm">
+                            {(o.items || []).map((it, idx) => (
+                              <div key={idx} className="flex flex-wrap gap-2">
+                                <span>
+                                  {it.id} · {it.volume} мл · {it.mix || "60/40"} ×{it.qty}
+                                </span>
+                                <span style={{ color: THEME.muted }}>
+                                  — {it.price}{o.currency || "₽"}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="mt-3 text-sm font-semibold">
+                            Итого: {o.total}{o.currency || "₽"}
+                          </div>
+                          <div className="mt-3 flex flex-wrap items-center gap-3">
+                            <label className="inline-flex items-center gap-2 text-xs" style={{ color: THEME.muted }}>
+                              <input
+                                type="checkbox"
+                                checked={Boolean(o.fulfilled)}
+                                onChange={(e) => setOrderFulfilled(o.id, e.target.checked)}
+                              />
+                              Выкуплен
+                            </label>
+                            <button
+                              type="button"
+                              className="rounded-full border px-3 py-1.5 text-xs hover:bg-white/[0.06]"
+                              style={{ borderColor: "rgba(255,120,120,0.45)", color: THEME.text }}
+                              onClick={() => removeOrder(o.id)}
+                            >
+                              Удалить
+                            </button>
+                          </div>
                         </div>
-                        <div className="mt-3 text-sm font-semibold">
-                          Итого: {o.total}{o.currency || "₽"}
-                        </div>
-                        <div className="mt-3 flex flex-wrap items-center gap-3">
-                          <label className="inline-flex items-center gap-2 text-xs" style={{ color: THEME.muted }}>
-                            <input
-                              type="checkbox"
-                              checked={Boolean(o.fulfilled)}
-                              onChange={(e) => setOrderFulfilled(o.id, e.target.checked)}
-                            />
-                            Выкуплен
-                          </label>
+                      ))}
+                    </div>
+                    {ordersTotal > ORDERS_PAGE_SIZE ? (
+                      <div className="mt-5">
+                        <PaginationBar
+                          page={ordersPage}
+                          totalPages={Math.max(1, Math.ceil(ordersTotal / ORDERS_PAGE_SIZE))}
+                          onPageChange={setOrdersPage}
+                        />
+                      </div>
+                    ) : null}
+                  </>
+                )
+              ) : adminTab === "stock" ? (
+                stockLoading ? (
+                  <div className="text-sm opacity-70">Загрузка...</div>
+                ) : stock.length === 0 ? (
+                  <div className="text-sm opacity-70">Нет товаров</div>
+                ) : (
+                  <>
+                    <div className="mb-3 flex flex-wrap gap-2 text-xs">
+                      <span className="rounded-full border px-3 py-1" style={{ borderColor: THEME.border2, color: THEME.text }}>
+                        Всего: {stockSummary.total}
+                      </span>
+                      <span className="rounded-full border px-3 py-1" style={{ borderColor: "rgba(255,200,120,0.45)", color: THEME.text }}>
+                        Низкий остаток: {stockSummary.low}
+                      </span>
+                      <span className="rounded-full border px-3 py-1" style={{ borderColor: "rgba(255,120,120,0.45)", color: THEME.text }}>
+                        Нет на складе: {stockSummary.zero}
+                      </span>
+                      <span className="rounded-full border px-3 py-1" style={{ borderColor: THEME.border2, color: THEME.text }}>
+                        Без лимита: {stockSummary.unlimited}
+                      </span>
+                    </div>
+                    <div className="grid gap-2">
+                      {stock.map((p) => {
+                        const qty = p.stockQty == null ? "—" : p.stockQty;
+                        const isLow = p.stockQty != null && p.stockQty > 0 && p.stockQty <= stockLow;
+                        const isZero = p.stockQty === 0;
+                        return (
+                          <div
+                            key={p.id}
+                            className="flex flex-wrap items-center gap-3 rounded-2xl border px-3 py-2"
+                            style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}
+                          >
+                            <div
+                              className="h-12 w-12 overflow-hidden rounded-xl border"
+                              style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.04)" }}
+                            >
+                              {p.image ? (
+                                <img src={p.image} alt="" className="h-full w-full object-cover" />
+                              ) : null}
+                            </div>
+                            <div className="min-w-[180px] flex-1 text-sm">
+                              <div className="font-semibold">{p.brand || "—"} · {p.name || p.id}</div>
+                              <div className="text-xs" style={{ color: THEME.muted }}>ID: {p.id}</div>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 text-xs">
+                              {isZero ? (
+                                <span
+                                  className="rounded-full border px-2 py-0.5"
+                                  style={{ borderColor: "rgba(255,120,120,0.45)", color: THEME.text }}
+                                >
+                                  Нет на складе
+                                </span>
+                              ) : isLow ? (
+                                <span
+                                  className="rounded-full border px-2 py-0.5"
+                                  style={{ borderColor: "rgba(255,200,120,0.45)", color: THEME.text }}
+                                >
+                                  Низкий остаток
+                                </span>
+                              ) : null}
+                              <span
+                                className="rounded-full border px-2 py-0.5"
+                                style={{
+                                  borderColor: isZero
+                                    ? "rgba(255,120,120,0.45)"
+                                    : isLow
+                                    ? "rgba(255,200,120,0.45)"
+                                    : THEME.border2,
+                                  color: THEME.text,
+                                }}
+                              >
+                                Остаток: {qty}
+                              </span>
+                              <span
+                                className="rounded-full border px-2 py-0.5"
+                                style={{ borderColor: THEME.border2, color: THEME.text }}
+                              >
+                                {p.inStock ? "В наличии" : "Нет в наличии"}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="number"
+                                  value={stockEdits[p.id] ?? ""}
+                                  onChange={(e) =>
+                                    setStockEdits((prev) => ({ ...prev, [p.id]: e.target.value }))
+                                  }
+                                  className="w-24 rounded-full border px-3 py-1 text-xs outline-none"
+                                  style={{
+                                    borderColor: THEME.border2,
+                                    background: "rgba(255,255,255,0.03)",
+                                    color: THEME.text,
+                                  }}
+                                  placeholder="—"
+                                />
+                                <button
+                                  type="button"
+                                  className="rounded-full border px-3 py-1 text-xs hover:bg-white/[0.06]"
+                                  style={{ borderColor: THEME.border2, color: THEME.text }}
+                                  disabled={Boolean(stockBusy[p.id])}
+                                  onClick={async () => {
+                                    const raw = stockEdits[p.id];
+                                    const next = raw === "" ? null : Math.max(0, Math.round(Number(raw) || 0));
+                                    setStockBusy((prev) => ({ ...prev, [p.id]: true }));
+                                    try {
+                                      await updateStock(p.id, next);
+                                      await listStock({ q: stockQuery, includeUnlimited: stockIncludeUnlimited, low: stockLow, page: stockPage, pageSize: STOCK_PAGE_SIZE })
+                                        .then((data) => {
+                                          const items = Array.isArray(data?.items) ? data.items : [];
+                                          setStock(items);
+                                          const edits = {};
+                                          items.forEach((item) => {
+                                            edits[item.id] = item.stockQty == null ? "" : String(item.stockQty);
+                                          });
+                                          setStockEdits(edits);
+                                          setStockSummary(data?.summary || { total: items.length, low: 0, zero: 0, unlimited: 0 });
+                                          setStockTotal(Number(data?.total || items.length || 0));
+                                        });
+                                    } catch (e) {
+                                      console.error(e);
+                                    } finally {
+                                      setStockBusy((prev) => {
+                                        const copy = { ...prev };
+                                        delete copy[p.id];
+                                        return copy;
+                                      });
+                                    }
+                                  }}
+                                >
+                                  {stockBusy[p.id] ? "..." : "Сохранить"}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="rounded-full border px-3 py-1 text-xs hover:bg-white/[0.06]"
+                                  style={{ borderColor: "rgba(255,120,120,0.45)", color: THEME.text }}
+                                  onClick={async () => {
+                                    if (!window.confirm("Удалить товар?")) return;
+                                    try {
+                                      await deletePerfume(p.id);
+                                      await listStock({ q: stockQuery, includeUnlimited: stockIncludeUnlimited, low: stockLow, page: stockPage, pageSize: STOCK_PAGE_SIZE })
+                                        .then((data) => {
+                                          const items = Array.isArray(data?.items) ? data.items : [];
+                                          setStock(items);
+                                          const edits = {};
+                                          items.forEach((item) => {
+                                            edits[item.id] = item.stockQty == null ? "" : String(item.stockQty);
+                                          });
+                                          setStockEdits(edits);
+                                          setStockSummary(data?.summary || { total: items.length, low: 0, zero: 0, unlimited: 0 });
+                                          setStockTotal(Number(data?.total || items.length || 0));
+                                        });
+                                    } catch (e) {
+                                      console.error(e);
+                                    }
+                                  }}
+                                >
+                                  Удалить
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {stockTotal > STOCK_PAGE_SIZE ? (
+                      <div className="mt-5">
+                        <PaginationBar
+                          page={stockPage}
+                          totalPages={Math.max(1, Math.ceil(stockTotal / STOCK_PAGE_SIZE))}
+                          onPageChange={setStockPage}
+                        />
+                      </div>
+                    ) : null}
+                  </>
+                )
+              ) : adminTab === "presets" ? (
+                presetsLoading ? (
+                  <div className="text-sm opacity-70">Загрузка...</div>
+                ) : (
+                  <div className="grid gap-4">
+                    <div
+                      className="rounded-3xl border p-4"
+                      style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}
+                    >
+                      <div className="text-sm font-semibold">Новый пресет</div>
+                      <div className="mt-1 text-xs" style={{ color: THEME.muted }}>
+                        Минимум действий: название пресета → название варианта → добавить ароматы.
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {PRESET_TEMPLATES.map((tpl) => (
                           <button
+                            key={tpl.title}
                             type="button"
                             className="rounded-full border px-3 py-1.5 text-xs hover:bg-white/[0.06]"
-                            style={{ borderColor: "rgba(255,120,120,0.45)", color: THEME.text }}
-                            onClick={() => removeOrder(o.id)}
+                            style={{ borderColor: THEME.border2, color: THEME.text }}
+                            onClick={() => applyPresetTemplate(tpl)}
                           >
-                            Удалить
+                            Заполнить «{tpl.title}»
                           </button>
-                        </div>
+                        ))}
                       </div>
-                    ))}
+                      <div className="mt-3 grid gap-3">
+                        <label className="text-xs" style={{ color: THEME.muted }}>
+                          Заголовок
+                          <input
+                            value={presetDraft.title}
+                            onChange={(e) => setPresetDraft((p) => ({ ...p, title: e.target.value }))}
+                            className="mt-2 w-full rounded-2xl border bg-transparent px-3 py-2 text-sm outline-none"
+                            style={{ borderColor: THEME.border2, color: THEME.text }}
+                            placeholder="Лето"
+                          />
+                        </label>
+                      </div>
+
+                      <div className="mt-4 grid gap-4">
+                        {(presetDraft.groups || []).map((g, idx) => {
+                          const searchKey = `new:${idx}`;
+                          const searchValue = presetSearch[searchKey] || "";
+                          const normalized = normalizeSearch(searchValue);
+                          const exclude = new Set(g.perfumeIds || []);
+                          const results =
+                            normalized.length < 2
+                              ? []
+                              : (items || [])
+                                  .filter((p) => {
+                                    if (!p?.id || exclude.has(p.id)) return false;
+                                    const hay = normalizeSearch(`${p.brand || ""} ${p.name || ""}`);
+                                    return hay.includes(normalized);
+                                  })
+                                  .slice(0, 6);
+                          return (
+                            <div
+                              key={`new-group-${idx}`}
+                              className="rounded-2xl border p-3"
+                              style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="text-xs font-semibold" style={{ color: THEME.text }}>
+                                  Вариант {idx + 1}
+                                </div>
+                                {(presetDraft.groups || []).length > 1 ? (
+                                  <button
+                                    type="button"
+                                    className="rounded-full border px-3 py-1 text-[11px] hover:bg-white/[0.06]"
+                                    style={{ borderColor: "rgba(255,120,120,0.45)", color: THEME.text }}
+                                    onClick={() => removeGroupFromDraft(idx)}
+                                  >
+                                    Удалить вариант
+                                  </button>
+                                ) : null}
+                              </div>
+                              <div className="mt-3 grid gap-3">
+                                <label className="text-xs" style={{ color: THEME.muted }}>
+                                  Название варианта
+                                  <input
+                                    value={g.title}
+                                    onChange={(e) => updateDraftGroupField(idx, "title", e.target.value)}
+                                    className="mt-2 w-full rounded-2xl border bg-transparent px-3 py-2 text-sm outline-none"
+                                    style={{ borderColor: THEME.border2, color: THEME.text }}
+                                    placeholder="Свежий цитрус"
+                                  />
+                                </label>
+                              </div>
+
+                              <div className="mt-3">
+                                <div className="text-xs font-semibold" style={{ color: THEME.muted }}>
+                                  Ароматы в варианте
+                                </div>
+                                {Array.isArray(g.perfumeIds) && g.perfumeIds.length ? (
+                                  <div className="mt-2 flex flex-wrap gap-2">
+                                    {g.perfumeIds.map((pid) => {
+                                      const perfume = perfumeIndex.get(pid);
+                                      const label = perfume
+                                        ? `${perfume.brand || "Без бренда"} — ${perfume.name || pid}`
+                                        : pid;
+                                      return (
+                                        <span
+                                          key={pid}
+                                          className="inline-flex items-center gap-2 rounded-full border px-2 py-1 text-[11px]"
+                                          style={{ borderColor: THEME.border2, color: THEME.text }}
+                                        >
+                                          {label}
+                                          <button
+                                            type="button"
+                                            className="text-[11px] opacity-70 hover:opacity-100"
+                                            onClick={() => removePerfumeFromDraftGroup(idx, pid)}
+                                          >
+                                            ✕
+                                          </button>
+                                        </span>
+                                      );
+                                    })}
+                                  </div>
+                                ) : (
+                                  <div className="mt-2 text-xs opacity-70">Пока ничего не добавлено</div>
+                                )}
+                              </div>
+
+                              <div className="mt-3">
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    className="rounded-full border px-3 py-1.5 text-xs hover:bg-white/[0.06]"
+                                    style={{ borderColor: THEME.border2, color: THEME.text }}
+                                    onClick={() => togglePicker(searchKey)}
+                                  >
+                                    Добавить аромат
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="rounded-full border px-3 py-1.5 text-xs hover:bg-white/[0.06]"
+                                    style={{ borderColor: THEME.border2, color: THEME.text }}
+                                    onClick={() => autoFillDraftGroup(idx)}
+                                  >
+                                    Автоподбор
+                                  </button>
+                                </div>
+                                {presetPickerOpen[searchKey] ? (
+                                  <div
+                                    className="mt-2 rounded-2xl border p-3"
+                                    style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}
+                                  >
+                                    <label className="text-xs" style={{ color: THEME.muted }}>
+                                      Поиск по каталогу
+                                      <input
+                                        value={searchValue}
+                                        onChange={(e) => setGroupSearchValue(searchKey, e.target.value)}
+                                        className="mt-2 w-full rounded-2xl border bg-transparent px-3 py-2 text-sm outline-none"
+                                        style={{ borderColor: THEME.border2, color: THEME.text }}
+                                        placeholder="Начни вводить название или бренд"
+                                      />
+                                    </label>
+                                    {normalized.length >= 2 ? (
+                                      results.length ? (
+                                        <div className="mt-2 grid gap-2">
+                                          {results.map((p) => (
+                                            <button
+                                              key={p.id}
+                                              type="button"
+                                              className="rounded-2xl border px-3 py-2 text-left text-xs hover:bg-white/[0.06]"
+                                              style={{ borderColor: THEME.border2, color: THEME.text }}
+                                              onClick={() => addPerfumeToDraftGroup(idx, p.id)}
+                                            >
+                                              {p.brand || "Без бренда"} — {p.name || p.id}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <div className="mt-2 text-xs opacity-70">Ничего не найдено</div>
+                                      )
+                                    ) : (
+                                      <div className="mt-2 text-xs opacity-70">Введите хотя бы 2 символа</div>
+                                    )}
+                                  </div>
+                                ) : null}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          className="rounded-full border px-4 py-2 text-sm hover:bg-white/[0.06]"
+                          style={{ borderColor: THEME.border2, color: THEME.text }}
+                          onClick={addGroupToDraft}
+                        >
+                          Добавить вариант
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-full border px-4 py-2 text-sm hover:bg-white/[0.06]"
+                          style={{ borderColor: THEME.border2, color: THEME.text }}
+                          onClick={saveNewPreset}
+                        >
+                          Сохранить пресет
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="rounded-3xl border p-4" style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-sm font-semibold">Готовые пресеты</div>
+                        <button
+                          type="button"
+                          className="rounded-full border px-3 py-1.5 text-xs hover:bg-white/[0.06]"
+                          style={{ borderColor: THEME.border2, color: THEME.text }}
+                          onClick={() => setPresetsListOpen((v) => !v)}
+                        >
+                          {presetsListOpen ? "Скрыть" : "Показать"}
+                        </button>
+                      </div>
+                      {presetsListOpen ? (
+                        <div className="mt-3 grid gap-3">
+                          {presets.length === 0 ? (
+                            <div className="text-sm opacity-70">Пресетов пока нет</div>
+                          ) : (
+                            presets.map((p) => {
+                              const draft = presetEdits[p.id] || {
+                                title: p.title || "",
+                                subtitle: p.subtitle || "",
+                                notes: p.notes || "",
+                                groups: Array.isArray(p.groups) ? p.groups : [],
+                              };
+                              return (
+                                <div
+                                  key={p.id}
+                                  className="rounded-3xl border p-4"
+                                  style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}
+                                >
+                                  <div className="text-xs" style={{ color: THEME.muted }}>
+                                    ID: <span style={{ color: THEME.text }}>{p.id}</span>
+                                  </div>
+                                  <div className="mt-3 grid gap-3">
+                                    <label className="text-xs" style={{ color: THEME.muted }}>
+                                      Заголовок
+                                      <input
+                                        value={draft.title}
+                                        onChange={(e) =>
+                                          setPresetEdits((prev) => ({
+                                            ...prev,
+                                            [p.id]: { ...draft, title: e.target.value },
+                                          }))
+                                        }
+                                        className="mt-2 w-full rounded-2xl border bg-transparent px-3 py-2 text-sm outline-none"
+                                        style={{ borderColor: THEME.border2, color: THEME.text }}
+                                      />
+                                    </label>
+                                  </div>
+
+                                  <div className="mt-4 grid gap-4">
+                                    {(draft.groups || []).map((g, idx) => {
+                                      const searchKey = `${p.id}:${idx}`;
+                                      const searchValue = presetSearch[searchKey] || "";
+                                      const normalized = normalizeSearch(searchValue);
+                                      const exclude = new Set(g.perfumeIds || []);
+                                      const results =
+                                        normalized.length < 2
+                                          ? []
+                                          : (items || [])
+                                              .filter((perf) => {
+                                                if (!perf?.id || exclude.has(perf.id)) return false;
+                                                const hay = normalizeSearch(`${perf.brand || ""} ${perf.name || ""}`);
+                                                return hay.includes(normalized);
+                                              })
+                                              .slice(0, 6);
+                                      return (
+                                        <div
+                                          key={`${p.id}-group-${idx}`}
+                                          className="rounded-2xl border p-3"
+                                          style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}
+                                        >
+                                          <div className="flex items-center justify-between gap-2">
+                                            <div className="text-xs font-semibold" style={{ color: THEME.text }}>
+                                              Вариант {idx + 1}
+                                            </div>
+                                            {(draft.groups || []).length > 1 ? (
+                                              <button
+                                                type="button"
+                                                className="rounded-full border px-3 py-1 text-[11px] hover:bg-white/[0.06]"
+                                                style={{ borderColor: "rgba(255,120,120,0.45)", color: THEME.text }}
+                                                onClick={() => removeGroupFromPreset(p.id, idx)}
+                                              >
+                                                Удалить вариант
+                                              </button>
+                                            ) : null}
+                                          </div>
+                                          <div className="mt-3 grid gap-3">
+                                            <label className="text-xs" style={{ color: THEME.muted }}>
+                                              Название варианта
+                                              <input
+                                                value={g.title}
+                                                onChange={(e) => updatePresetGroupField(p.id, idx, "title", e.target.value)}
+                                                className="mt-2 w-full rounded-2xl border bg-transparent px-3 py-2 text-sm outline-none"
+                                                style={{ borderColor: THEME.border2, color: THEME.text }}
+                                                placeholder="Свежий цитрус"
+                                              />
+                                            </label>
+                                          </div>
+
+                                          <div className="mt-3">
+                                            <div className="text-xs font-semibold" style={{ color: THEME.muted }}>
+                                              Ароматы в варианте
+                                            </div>
+                                            {Array.isArray(g.perfumeIds) && g.perfumeIds.length ? (
+                                              <div className="mt-2 flex flex-wrap gap-2">
+                                                {g.perfumeIds.map((pid) => {
+                                                  const perfume = perfumeIndex.get(pid);
+                                                  const label = perfume
+                                                    ? `${perfume.brand || "Без бренда"} — ${perfume.name || pid}`
+                                                    : pid;
+                                                  return (
+                                                    <span
+                                                      key={pid}
+                                                      className="inline-flex items-center gap-2 rounded-full border px-2 py-1 text-[11px]"
+                                                      style={{ borderColor: THEME.border2, color: THEME.text }}
+                                                    >
+                                                      {label}
+                                                      <button
+                                                        type="button"
+                                                        className="text-[11px] opacity-70 hover:opacity-100"
+                                                        onClick={() => removePerfumeFromPresetGroup(p.id, idx, pid)}
+                                                      >
+                                                        ✕
+                                                      </button>
+                                                    </span>
+                                                  );
+                                                })}
+                                              </div>
+                                            ) : (
+                                              <div className="mt-2 text-xs opacity-70">Пока ничего не добавлено</div>
+                                            )}
+                                          </div>
+
+                                          <div className="mt-3">
+                                            <div className="flex flex-wrap gap-2">
+                                              <button
+                                                type="button"
+                                                className="rounded-full border px-3 py-1.5 text-xs hover:bg-white/[0.06]"
+                                                style={{ borderColor: THEME.border2, color: THEME.text }}
+                                                onClick={() => togglePicker(searchKey)}
+                                              >
+                                                Добавить аромат
+                                              </button>
+                                              <button
+                                                type="button"
+                                                className="rounded-full border px-3 py-1.5 text-xs hover:bg-white/[0.06]"
+                                                style={{ borderColor: THEME.border2, color: THEME.text }}
+                                                onClick={() => autoFillPresetGroup(p.id, idx)}
+                                              >
+                                                Автоподбор
+                                              </button>
+                                            </div>
+                                            {presetPickerOpen[searchKey] ? (
+                                              <div
+                                                className="mt-2 rounded-2xl border p-3"
+                                                style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}
+                                              >
+                                                <label className="text-xs" style={{ color: THEME.muted }}>
+                                                  Поиск по каталогу
+                                                  <input
+                                                    value={searchValue}
+                                                    onChange={(e) => setGroupSearchValue(searchKey, e.target.value)}
+                                                    className="mt-2 w-full rounded-2xl border bg-transparent px-3 py-2 text-sm outline-none"
+                                                    style={{ borderColor: THEME.border2, color: THEME.text }}
+                                                    placeholder="Начни вводить название или бренд"
+                                                  />
+                                                </label>
+                                                {normalized.length >= 2 ? (
+                                                  results.length ? (
+                                                    <div className="mt-2 grid gap-2">
+                                                      {results.map((perf) => (
+                                                        <button
+                                                          key={perf.id}
+                                                          type="button"
+                                                          className="rounded-2xl border px-3 py-2 text-left text-xs hover:bg-white/[0.06]"
+                                                          style={{ borderColor: THEME.border2, color: THEME.text }}
+                                                          onClick={() => addPerfumeToPresetGroup(p.id, idx, perf.id)}
+                                                        >
+                                                          {perf.brand || "Без бренда"} — {perf.name || perf.id}
+                                                        </button>
+                                                      ))}
+                                                    </div>
+                                                  ) : (
+                                                    <div className="mt-2 text-xs opacity-70">Ничего не найдено</div>
+                                                  )
+                                                ) : (
+                                                  <div className="mt-2 text-xs opacity-70">Введите хотя бы 2 символа</div>
+                                                )}
+                                              </div>
+                                            ) : null}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+
+                                  <div className="mt-3 flex flex-wrap gap-2">
+                                    <button
+                                      type="button"
+                                      className="rounded-full border px-4 py-2 text-sm hover:bg-white/[0.06]"
+                                      style={{ borderColor: THEME.border2, color: THEME.text }}
+                                      onClick={() => addGroupToPreset(p.id)}
+                                    >
+                                      Добавить вариант
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="rounded-full border px-4 py-2 text-sm hover:bg-white/[0.06]"
+                                      style={{ borderColor: THEME.border2, color: THEME.text }}
+                                      onClick={() => saveExistingPreset(p.id)}
+                                    >
+                                      Сохранить
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="rounded-full border px-4 py-2 text-sm hover:bg-white/[0.06]"
+                                      style={{ borderColor: "rgba(255,120,120,0.45)", color: THEME.text }}
+                                      onClick={() => removePreset(p.id)}
+                                    >
+                                      Удалить
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      ) : (
+                        <div className="mt-3 text-xs" style={{ color: THEME.muted }}>
+                          Список скрыт. Нажми «Показать», чтобы отредактировать готовые пресеты.
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )
               ) : adminTab === "users" ? (
-                usersLoading ? (
-                  <div className="text-sm opacity-70">Загрузка...</div>
-                ) : filteredUsers.length === 0 ? (
-                  <div className="text-sm opacity-70">Нет пользователей</div>
-                ) : (
-                  <div className="grid gap-3">
-                    {filteredUsers.map((u) => (
-                      <div
-                        key={u.id}
-                        className="rounded-3xl border p-4"
-                        style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="text-sm font-semibold">
-                            {u.displayName || "Без имени"}
-                          </div>
-                          <div className="text-xs" style={{ color: THEME.muted }}>
-                            {u.email || "—"}
-                          </div>
-                        </div>
-                        <div className="mt-2 text-xs" style={{ color: THEME.muted }}>
-                          UID: <span style={{ color: THEME.text }}>{u.id}</span>
-                        </div>
-                      </div>
-                    ))}
+                <>
+                  <div
+                    className="mb-3 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs"
+                    style={{ borderColor: THEME.border2, color: THEME.text }}
+                  >
+                    Всего пользователей: <span>{usersLoading ? "…" : usersCount}</span>
                   </div>
-                )
+                  {usersLoading ? (
+                    <div className="text-sm opacity-70">Загрузка...</div>
+                  ) : filteredUsers.length === 0 ? (
+                    <div className="text-sm opacity-70">Нет пользователей</div>
+                  ) : (
+                    <>
+                      <div className="grid gap-3">
+                        {filteredUsers.map((u) => (
+                          <div
+                            key={u.id}
+                            className="rounded-3xl border p-4"
+                            style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="text-sm font-semibold">{u.displayName || "Без имени"}</div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                {u.isAdmin ? (
+                                  <span
+                                    className="rounded-full border px-2 py-0.5 text-[11px]"
+                                    style={{ borderColor: "rgba(120,200,120,0.45)", color: THEME.text }}
+                                  >
+                                    Админ
+                                  </span>
+                                ) : null}
+                                <button
+                                  type="button"
+                                  className="rounded-full border px-3 py-1 text-[11px] hover:bg-white/[0.06]"
+                                  style={{ borderColor: THEME.border2, color: THEME.text }}
+                                  onClick={() => updateUserAdmin(u, !u.isAdmin)}
+                                  disabled={Boolean(userBusy[u.id])}
+                                >
+                                  {userBusy[u.id] ? "..." : u.isAdmin ? "Снять админа" : "Сделать админом"}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="rounded-full border px-3 py-1 text-[11px] hover:bg-white/[0.06]"
+                                  style={{ borderColor: "rgba(255,120,120,0.45)", color: THEME.text }}
+                                  onClick={() => removeUser(u)}
+                                  disabled={Boolean(userBusy[u.id]) || u.id === uid}
+                                >
+                                  {userBusy[u.id] ? "..." : u.id === uid ? "Нельзя удалить себя" : "Удалить"}
+                                </button>
+                              </div>
+                            </div>
+                            <div className="mt-1 text-xs" style={{ color: THEME.muted }}>
+                              {u.email || "—"}
+                            </div>
+                            <div className="mt-2 text-xs" style={{ color: THEME.muted }}>
+                              UID: <span style={{ color: THEME.text }}>{u.id}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {usersTotal > USERS_PAGE_SIZE ? (
+                        <div className="mt-5">
+                          <PaginationBar
+                            page={usersPage}
+                            totalPages={Math.max(1, Math.ceil(usersTotal / USERS_PAGE_SIZE))}
+                            onPageChange={setUsersPage}
+                          />
+                        </div>
+                      ) : null}
+                    </>
+                  )}
+                </>
               ) : loading ? (
                 <div className="text-sm opacity-70">Загрузка...</div>
               ) : filtered.length === 0 ? (
@@ -1265,6 +2548,15 @@ export default function AdminPage() {
                             baseVolume: e.target.value,
                           }))
                         }
+                      />
+                    </Field>
+
+                    <Field label="Остаток (stockQty)">
+                      <Input
+                        type="number"
+                        value={draft.stockQty}
+                        onChange={(e) => setDraft((p) => ({ ...p, stockQty: e.target.value }))}
+                        placeholder="если пусто — без лимита"
                       />
                     </Field>
 

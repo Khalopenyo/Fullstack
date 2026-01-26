@@ -24,7 +24,7 @@ export default function MobileFiltersSheet({ open, total, children, onClose, onC
           >
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm font-semibold" style={{ color: THEME.text }}>Фильтры</div>
+                <div className="text-sm font-semibold" style={{ color: THEME.text }}>Подбери аромат</div>
                 <div className="text-xs" style={{ color: THEME.muted }}>Подбор по нотам и сезону</div>
               </div>
               <button

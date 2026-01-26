@@ -84,6 +84,7 @@ export function normalizePerfume(raw, id, issues = []) {
   const isHit = typeof raw.isHit === "boolean" ? raw.isHit : false;
   const orderCount = asNumber(raw.orderCount ?? 0, 0);
   const inStock = typeof raw.inStock === "boolean" ? raw.inStock : true;
+  const stockQty = raw.stockQty == null ? null : clampInt(raw.stockQty, 0, 1000000, 0);
 
   const currency = asString(raw.currency, "₽").trim() || "₽";
 
@@ -112,6 +113,7 @@ export function normalizePerfume(raw, id, issues = []) {
     isHit,
     orderCount,
     inStock,
+    stockQty,
 
     currency,
     popularity,
@@ -130,6 +132,32 @@ function modeFromCollection(name) {
 
 export async function fetchPerfumes(mode = "retail") {
   return apiFetch(`/api/perfumes?mode=${encodeURIComponent(mode)}`);
+}
+
+export async function fetchPerfumesPage({
+  mode = "retail",
+  page = 1,
+  pageSize = 6,
+  q = "",
+  mustNotes = [],
+  avoidNotes = [],
+  seasons = [],
+  dayNight = [],
+  sort = "",
+  presetIds = [],
+} = {}) {
+  const params = new URLSearchParams();
+  params.set("mode", mode);
+  params.set("page", String(page));
+  params.set("pageSize", String(pageSize));
+  if (q) params.set("q", q);
+  if (sort) params.set("sort", sort);
+  if (Array.isArray(mustNotes) && mustNotes.length) params.set("mustNotes", mustNotes.join(","));
+  if (Array.isArray(avoidNotes) && avoidNotes.length) params.set("avoidNotes", avoidNotes.join(","));
+  if (Array.isArray(seasons) && seasons.length) params.set("seasons", seasons.join(","));
+  if (Array.isArray(dayNight) && dayNight.length) params.set("dayNight", dayNight.join(","));
+  if (Array.isArray(presetIds) && presetIds.length) params.set("presetIds", presetIds.join(","));
+  return apiFetch(`/api/perfumes?${params.toString()}`);
 }
 
 export async function fetchCatalogWithDiagnostics(collectionName) {

@@ -212,6 +212,10 @@ function NotePicker({ title, value, onChange, placeholder, tone, allNotes }) {
 
 export default function CatalogFilters({
   presets,
+  activePresetId,
+  activeGroupId,
+  onSelectPreset,
+  onSelectGroup,
   seasons,
   toggleSeason,
   dayNight,
@@ -225,23 +229,59 @@ export default function CatalogFilters({
   return (
     <div className="space-y-4">
       <SectionCard
-        title="Быстрый старт"
-        subtitle="Пресеты — самый быстрый путь к подходящим ароматам."
+        title="Подбери аромат"
+        subtitle="Выбери настроение — мы подставим лучший набор фильтров."
         defaultOpen={true}
       >
-        <div className="mt-1 text-xs" style={{ color: THEME.muted }}></div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {presets.map((p) => (
-            <button
-              key={p.title}
-              type="button"
-              className="rounded-full border px-3 py-1.5 text-sm transition hover:bg-white/[0.06] focus:outline-none focus:ring-2 focus:ring-[rgba(127,122,73,0.40)]"
-              style={{ borderColor: THEME.border2, color: THEME.text }}
-              onClick={p.apply}
-            >
-              {p.title}
-            </button>
-          ))}
+        <div className="mt-3 grid gap-3">
+          {presets.map((p) => {
+            const active = p.id && p.id === activePresetId;
+            return (
+              <div key={p.id || p.title}>
+                <button
+                  type="button"
+                  className="w-full rounded-2xl border px-4 py-3 text-left transition hover:bg-white/[0.06] focus:outline-none focus:ring-2 focus:ring-[rgba(127,122,73,0.40)]"
+                  style={{
+                    borderColor: THEME.border2,
+                    color: THEME.text,
+                    background: active ? "rgba(255,255,255,0.06)" : "transparent",
+                  }}
+                  onClick={() => onSelectPreset?.(p)}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-sm font-semibold">{p.title}</div>
+                    <div className="text-xs" style={{ color: THEME.muted2 }}>
+                      {p.subtitle}
+                    </div>
+                  </div>
+                  {p.notes ? (
+                    <div className="mt-1 text-xs" style={{ color: THEME.muted }}>
+                      {p.notes}
+                    </div>
+                  ) : null}
+                </button>
+                {active && Array.isArray(p.groups) && p.groups.length ? (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {p.groups.map((g) => (
+                      <button
+                        key={g.id || g.title}
+                        type="button"
+                        className="rounded-full border px-3 py-1.5 text-xs transition hover:bg-white/[0.06]"
+                        style={{
+                          borderColor: THEME.border2,
+                          color: THEME.text,
+                          background: g.id === activeGroupId ? "rgba(255,255,255,0.06)" : "transparent",
+                        }}
+                        onClick={() => onSelectGroup?.(p, g)}
+                      >
+                        {g.title}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
         </div>
       </SectionCard>
 

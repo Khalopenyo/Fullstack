@@ -83,7 +83,7 @@ export default function CatalogHeader({
             onClick={onOpenFilters}
           >
             <SlidersHorizontal className="h-4 w-4" style={{ color: THEME.muted }} />
-            <span className="catalogHeader__text">Фильтры</span>
+            <span className="catalogHeader__text">Подбери аромат</span>
           </button>
 
           <PillButton onClick={onOpenAuth}>

@@ -1,70 +1,135 @@
-# Getting Started with Create React App
+# Parfum
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Веб‑магазин парфюмов: фронтенд на React (CRA), бэкенд на Go + PostgreSQL.
 
-## Available Scripts
+## Быстрый старт (локально)
 
-In the project directory, you can run:
+### 1) База и API (терминал #1)
 
-### `npm start`
+```
+cd backend
+cp .env.example .env
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+docker compose up -d
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+psql "postgres://parfum:parfum@localhost:5432/parfum?sslmode=disable" -f migrations/001_init.sql
+psql "postgres://parfum:parfum@localhost:5432/parfum?sslmode=disable" -f migrations/003_allow_guest_orders.sql
+psql "postgres://parfum:parfum@localhost:5432/parfum?sslmode=disable" -f migrations/004_add_order_phone.sql
+psql "postgres://parfum:parfum@localhost:5432/parfum?sslmode=disable" -f migrations/005_presets.sql
+psql "postgres://parfum:parfum@localhost:5432/parfum?sslmode=disable" -f migrations/006_preset_groups.sql
+psql "postgres://parfum:parfum@localhost:5432/parfum?sslmode=disable" -f migrations/007_seed_presets_defaults.sql
+psql "postgres://parfum:parfum@localhost:5432/parfum?sslmode=disable" -f migrations/008_refresh_tokens.sql
+psql "postgres://parfum:parfum@localhost:5432/parfum?sslmode=disable" -f migrations/009_stats_daily.sql
+psql "postgres://parfum:parfum@localhost:5432/parfum?sslmode=disable" -f migrations/010_add_stock_qty.sql
 
-### `npm test`
+node scripts/seed_perfumes.mjs
+psql "postgres://parfum:parfum@localhost:5432/parfum?sslmode=disable" -f migrations/002_seed_perfumes.sql
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+export DATABASE_URL="postgres://parfum:parfum@localhost:5432/parfum?sslmode=disable"
+export JWT_SECRET="change-me"
+export CORS_ORIGINS="http://localhost:3000"
+go run ./cmd/api
+```
 
-### `npm run build`
+### 2) Фронтенд (терминал #2)
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```
+cd ..
+cp .env.example .env.local
+npm install
+npm start
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+Открой `http://localhost:3000`.
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+Если фронт запустился на 3001, обнови CORS для API:
+```
+export CORS_ORIGINS="http://localhost:3001"
+```
 
-### `npm run eject`
+## Переменные окружения
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+Фронтенд (`.env.local`):
+- `REACT_APP_API_URL=http://localhost:8080`
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+Бэкенд (`backend/.env`):
+- `ADDR=:8080`
+- `DATABASE_URL=postgres://...`
+- `JWT_SECRET=change-me`
+- `UPLOAD_DIR=./uploads`
+- `CORS_ORIGINS=http://localhost:3000`
+- `COOKIE_SECURE=false`
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+## Админ‑доступ
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+Назначение админа делается через защищенный endpoint:
 
-## Learn More
+```
+PUT /api/users/{id}/admin
+Authorization: Bearer <token_admin>
+Content-Type: application/json
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+{"isAdmin": true}
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+Первого админа можно назначить напрямую в БД:
 
-### Code Splitting
+```
+UPDATE users SET is_admin = true WHERE email = 'you@example.com';
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+Или через скрипт:
 
-### Analyzing the Bundle Size
+```
+DATABASE_URL="postgres://..." ./backend/scripts/set_admin.sh you@example.com true
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+## Деплой
 
-### Making a Progressive Web App
+Смотри `DEPLOY.md`.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
 
-### Advanced Configuration
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
 
-### Deployment
+Ниже — аудит проекта в формате code‑review: сначала проблемы (по серьёзности), потом вопросы/предположения и список того, чего не хватает для «полноценного магазина».
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+Критические / безопасность
 
-### `npm run build` fails to minify
+JWT хранится в localStorage → риск XSS‑кражи токена. Любой XSS даёт полный доступ к аккаунту/админке. Файл: api.js. Рекомендация: httpOnly cookie + CSRF‑токен или хотя бы storage‑in‑memory + refresh.
+Нет механизма отзыва токенов / сессий. Токен живёт 7 дней, и если украден — не отозвать. Файл: server.go. Нужен refresh‑token + blacklist/rotation.
+Нет подтверждения email и восстановления пароля. Аккаунт без верификации легко перехватывается/ошибочно указан. Файлы: handlers.go (register/login), AuthPage.js.
+Высокий приоритет (стабильность/масштаб)
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Список товаров/заказов/пользователей без пагинации. При росте базы админка и каталог будут тормозить. Файлы: handlers.go (list endpoints), AdminPage.js, CatalogPage.js.
+Статистика /api/stats без защиты от злоупотреблений кроме простого rate‑limit по IP. Можно спамить события и раздувать таблицу. Файл: handlers.go.
+Uploads без ресайза/сжатия. Большие изображения будут грузиться медленно, а CDN не используется. Файл: server.go (upload).
+Средний приоритет (бизнес‑логика)
+
+Нет управления складом/остатками. Есть только inStock, но нет количества, резервирования и списания. Файлы: handlers.go (orders/perfumes), схема 001_init.sql.
+Нет оплаты/статуса оплаты. Заказы создаются без платежной логики, нет «оплачен / не оплачен / отменён». Файл: handlers.go (orders).
+Нет уведомлений (email/Telegram) о новом заказе. Сейчас админ узнаёт только в админке. Файлы: handlers.go.
+Отсутствует логирование и аудит действий админки. Кто редактировал товар/заказ не фиксируется.
+Низкий приоритет / UX
+
+Структурные данные (schema.org) с example.com. Нужно заменить на реальный домен перед продом. Файл: index.html.
+Слабые правила пароля. Минимум 6 символов, без сложности. Файл: handlers.go.
+Что обычно нужно для «полноценного интернет‑магазина»
+
+Платёжная система (ЮKassa/CloudPayments/Stripe).
+Статусы оплаты, подтверждение, webhooks.
+Склад и остатки
+Количество, резерв, списание, отчёт по складу.
+Доставка
+Стоимость, зона доставки, самовывоз, статус доставки.
+Уведомления
+Email/Telegram админке и клиенту.
+Аккаунт клиента
+История заказов, повтор заказа, профиль.
+Верификация/сброс пароля
+Email‑ссылка + токены.
+Политика конфиденциальности и оферта
+Требуется для оплаты и маркетинга.
+SEO/маркетинг
+Реальный домен в schema.org, актуальный sitemap, микроразметка товара.
+Мониторинг и бэкапы
+Логи, алерты, регулярные бэкапы Postgres.

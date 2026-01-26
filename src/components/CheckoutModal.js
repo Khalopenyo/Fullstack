@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { X, Copy, MessageCircle, Send, Instagram } from "lucide-react";
 import { THEME } from "../data/theme";
 import { SELLER_CONTACTS } from "../data/sellerContacts";
@@ -17,15 +17,22 @@ function formatLine(item) {
   return `- ${brand} ${name} · ${volume} мл · ${mix} ×${qty} — ${unit}${cur} / шт`;
 }
 
-function buildMessage(items, total, delivery) {
+function buildMessage(items, total, delivery, contact) {
   const currency = (items[0]?.perfume?.currency) || "₽";
   const lines = items.map(formatLine).join("\n");
   const method = delivery?.method === "delivery" ? "Доставка" : "Самовывоз";
   const address = delivery?.method === "delivery" ? String(delivery?.address || "").trim() : "";
+  const name = String(contact?.name || "").trim();
+  const phone = String(contact?.phone || "").trim();
+  const email = String(contact?.email || "").trim();
   return [
     "Здравствуйте! Хочу оформить заказ:",
     lines,
     "",
+    name ? `Имя: ${name}` : null,
+    phone ? `Телефон: ${phone}` : null,
+    email ? `Email: ${email}` : null,
+    name || phone || email ? "" : null,
     `Способ: ${method}`,
     address ? `Адрес: ${address}` : null,
     "",
@@ -37,21 +44,107 @@ function buildMessage(items, total, delivery) {
     .join("\n");
 }
 
+function normalizePhone(value) {
+  return String(value || "").replace(/[^\d+]/g, "");
+}
+
+function formatPhone(value) {
+  const raw = normalizePhone(value);
+  const digitsOnly = raw.replace(/\D/g, "");
+  if (!digitsOnly) return "";
+
+  let digits = digitsOnly;
+  if (digits.length === 11 && digits.startsWith("8")) {
+    digits = "7" + digits.slice(1);
+  }
+
+  if (digits.length >= 11 && digits.startsWith("7")) {
+    return `+7 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7, 9)}-${digits.slice(9, 11)}${digits.length > 11 ? " " + digits.slice(11) : ""}`;
+  }
+
+  if (raw.startsWith("+")) {
+    return "+" + digits;
+  }
+
+  return digits;
+}
+
+function mapCursorToFormatted(rawValue, formattedValue, cursorPos) {
+  const raw = String(rawValue || "");
+  const formatted = String(formattedValue || "");
+  const before = raw.slice(0, Math.max(0, cursorPos || 0));
+  let digitsBefore = 0;
+  for (let i = 0; i < before.length; i += 1) {
+    if (before[i] >= "0" && before[i] <= "9") digitsBefore += 1;
+  }
+
+  let idx = 0;
+  let seen = 0;
+  while (idx < formatted.length) {
+    const ch = formatted[idx];
+    if (ch >= "0" && ch <= "9") {
+      seen += 1;
+      if (seen >= digitsBefore) {
+        return idx + 1;
+      }
+    }
+    idx += 1;
+  }
+  return formatted.length;
+}
+
+function isValidPhone(value) {
+  const raw = normalizePhone(value);
+  const digits = raw.replace(/\D/g, "");
+  return digits.length >= 10 && digits.length <= 15;
+}
+
 export default function CheckoutModal({ open, items, total, onClose }) {
   const [copied, setCopied] = useState(false);
   const [deliveryMethod, setDeliveryMethod] = useState("pickup");
   const [address, setAddress] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [phoneCursor, setPhoneCursor] = useState(null);
+  const phoneRef = useRef(null);
   const { user } = useAuth();
 
   const delivery = { method: deliveryMethod, address };
-  const message = useMemo(() => buildMessage(items || [], total || 0, delivery), [items, total, deliveryMethod, address]);
+  const contact = { name: contactName, phone: contactPhone, email: contactEmail };
+  const guestNeedsPhone = Boolean(user?.isAnonymous);
+  const phoneRequiredMissing = guestNeedsPhone && !String(contactPhone || "").trim();
+  const phoneInvalid = guestNeedsPhone && String(contactPhone || "").trim() && !isValidPhone(contactPhone);
+  const message = useMemo(
+    () => buildMessage(items || [], total || 0, delivery, contact),
+    [items, total, deliveryMethod, address, contactName, contactPhone, contactEmail]
+  );
   const encoded = useMemo(() => encodeURIComponent(message), [message]);
+
+  React.useEffect(() => {
+    if (phoneCursor == null) return;
+    const id = requestAnimationFrame(() => {
+      if (phoneRef.current && typeof phoneCursor === "number") {
+        phoneRef.current.setSelectionRange(phoneCursor, phoneCursor);
+        setPhoneCursor(null);
+      }
+    });
+    return () => cancelAnimationFrame(id);
+  }, [phoneCursor]);
 
   if (!open) return null;
 
   const openWithCopy = async (url, channel) => {
+    if (phoneRequiredMissing || phoneInvalid) return;
     try {
-      await createOrder({ user, items, total, channel, delivery: { method: deliveryMethod, address } });
+      await createOrder({
+        user,
+        items,
+        total,
+        channel,
+        contact,
+        delivery: { method: deliveryMethod, address },
+      });
     } catch {
       // не ломаем UX, если запись заказа не удалась
     }
@@ -88,7 +181,10 @@ export default function CheckoutModal({ open, items, total, onClose }) {
           <div>
             <div className="text-xl font-semibold">Оформление заказа</div>
             <div className="mt-1 text-sm" style={{ color: THEME.muted }}>
-                          </div>
+              {user?.isAnonymous
+                ? "Гостевой заказ сохраняется без привязки к аккаунту."
+                : "Заказ будет сохранен в истории аккаунта."}
+            </div>
           </div>
 
           <button
@@ -139,6 +235,60 @@ export default function CheckoutModal({ open, items, total, onClose }) {
           </pre>
         </div>
 
+        {user?.isAnonymous ? (
+          <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}>
+            <div className="text-sm font-semibold">Контактные данные</div>
+            <div className="mt-3 grid gap-3">
+              <label className="text-xs" style={{ color: THEME.muted }}>
+                Имя
+                <input
+                  value={contactName}
+                  onChange={(e) => setContactName(e.target.value)}
+                  className="mt-2 w-full rounded-2xl border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[rgba(127,122,73,0.40)]"
+                  style={{ borderColor: THEME.border2, color: THEME.text }}
+                  placeholder="Как к вам обращаться?"
+                />
+              </label>
+              <label className="text-xs" style={{ color: THEME.muted }}>
+                Телефон
+                <input
+                  ref={phoneRef}
+                  value={contactPhone}
+                  onChange={(e) => {
+                    const raw = e.target.value;
+                    const formatted = formatPhone(raw);
+                    const nextCursor = mapCursorToFormatted(raw, formatted, e.target.selectionStart);
+                    setContactPhone(formatted);
+                    setPhoneCursor(nextCursor);
+                  }}
+                  className="mt-2 w-full rounded-2xl border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[rgba(127,122,73,0.40)]"
+                  style={{ borderColor: THEME.border2, color: THEME.text }}
+                  placeholder="+7 ..."
+                />
+              </label>
+              <label className="text-xs" style={{ color: THEME.muted }}>
+                Email
+                <input
+                  value={contactEmail}
+                  onChange={(e) => setContactEmail(e.target.value)}
+                  className="mt-2 w-full rounded-2xl border bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[rgba(127,122,73,0.40)]"
+                  style={{ borderColor: THEME.border2, color: THEME.text }}
+                  placeholder="you@example.com"
+                />
+              </label>
+            </div>
+            {phoneRequiredMissing ? (
+              <div className="mt-2 text-xs" style={{ color: "rgba(255,120,120,0.85)" }}>
+                Укажи номер телефона, чтобы оформить заказ.
+              </div>
+            ) : phoneInvalid ? (
+              <div className="mt-2 text-xs" style={{ color: "rgba(255,120,120,0.85)" }}>
+                Неверный формат номера (10–15 цифр).
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}>
           <div className="text-sm font-semibold">Получение</div>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -178,7 +328,7 @@ export default function CheckoutModal({ open, items, total, onClose }) {
             type="button"
             className="flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left hover:bg-white/[0.06] disabled:opacity-40"
             style={{ borderColor: THEME.border2 }}
-            disabled={!wa}
+            disabled={!wa || phoneRequiredMissing || phoneInvalid}
             onClick={() => openWithCopy(wa, "wa")}
           >
             <div className="flex items-center gap-3">
@@ -197,7 +347,7 @@ export default function CheckoutModal({ open, items, total, onClose }) {
             type="button"
             className="flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left hover:bg-white/[0.06] disabled:opacity-40"
             style={{ borderColor: THEME.border2 }}
-            disabled={!tg}
+            disabled={!tg || phoneRequiredMissing || phoneInvalid}
             onClick={() => openWithCopy(tg, "tg")}
           >
             <div className="flex items-center gap-3">
@@ -216,7 +366,7 @@ export default function CheckoutModal({ open, items, total, onClose }) {
             type="button"
             className="flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left hover:bg-white/[0.06] disabled:opacity-40"
             style={{ borderColor: THEME.border2 }}
-            disabled={!ig}
+            disabled={!ig || phoneRequiredMissing || phoneInvalid}
             onClick={() => openWithCopy(ig, "ig")}
           >
             <div className="flex items-center gap-3">

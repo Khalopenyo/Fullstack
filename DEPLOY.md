@@ -15,6 +15,7 @@
 DATABASE_URL=postgres://USER:PASSWORD@HOST:5432/DBNAME?sslmode=require
 JWT_SECRET=change-me
 CORS_ORIGINS=https://your-domain.com
+COOKIE_SECURE=true
 PUBLIC_API_URL=https://your-domain.com
 ```
 
@@ -26,19 +27,8 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 ## 5) Миграции и сид
 Запусти один раз:
 ```
-docker run --rm -it \
-  -v "$PWD/backend/migrations:/migrations" \
-  postgres:16 \
-  psql "${DATABASE_URL}" \
-  -f /migrations/001_init.sql
-
+bash deploy/run_migrations.sh
 node backend/scripts/seed_perfumes.mjs
-
-docker run --rm -it \
-  -v "$PWD/backend/migrations:/migrations" \
-  postgres:16 \
-  psql "${DATABASE_URL}" \
-  -f /migrations/002_seed_perfumes.sql
 ```
 
 ## 6) HTTPS

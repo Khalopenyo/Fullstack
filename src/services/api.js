@@ -1,28 +1,27 @@
 const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8080";
-const TOKEN_KEY = "auth:token";
+let inMemoryToken = "";
 
 export function getToken() {
-  try {
-    return localStorage.getItem(TOKEN_KEY) || "";
-  } catch {
-    return "";
-  }
+  return inMemoryToken || "";
 }
 
 export function setToken(token) {
-  try {
-    if (token) {
-      localStorage.setItem(TOKEN_KEY, token);
-    } else {
-      localStorage.removeItem(TOKEN_KEY);
-    }
-  } catch {
-    // ignore storage failures
-  }
+  inMemoryToken = token || "";
 }
 
 export function clearToken() {
-  setToken("");
+  inMemoryToken = "";
+}
+
+async function refreshAccessToken() {
+  const res = await fetch(`${API_URL}/api/auth/refresh`, {
+    method: "POST",
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error("refresh failed");
+  const data = await res.json();
+  if (data?.token) setToken(data.token);
+  return data;
 }
 
 export async function apiFetch(path, options = {}) {
@@ -43,6 +42,7 @@ export async function apiFetch(path, options = {}) {
   const res = await fetch(url, {
     ...options,
     headers,
+    credentials: "include",
   });
 
   const contentType = res.headers.get("content-type") || "";
@@ -50,6 +50,14 @@ export async function apiFetch(path, options = {}) {
   const data = isJSON ? await res.json() : await res.text();
 
   if (!res.ok) {
+    if (res.status === 401 && !options._retry && !String(path).includes("/api/auth/refresh")) {
+      try {
+        await refreshAccessToken();
+        return apiFetch(path, { ...options, _retry: true });
+      } catch {
+        // fallthrough
+      }
+    }
     const message = isJSON ? data?.error || res.statusText : res.statusText;
     const err = new Error(message || "Request failed");
     err.status = res.status;

@@ -28,6 +28,22 @@ export async function me() {
   return apiFetch("/api/auth/me");
 }
 
+export async function refresh() {
+  const data = await apiFetch("/api/auth/refresh", { method: "POST" });
+  if (data?.token) setToken(data.token);
+  return data?.user;
+}
+
+export async function logout() {
+  try {
+    await apiFetch("/api/auth/logout", { method: "POST" });
+  } catch {
+    // ignore logout errors
+  } finally {
+    clearToken();
+  }
+}
+
 export function signOut() {
   clearToken();
 }

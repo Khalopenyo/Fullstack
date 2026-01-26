@@ -25,6 +25,15 @@ function Field({ label, type = "text", value, onChange, placeholder }) {
   );
 }
 
+function isValidEmail(value) {
+  const v = String(value || "").trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+}
+
+function isValidPassword(value) {
+  return String(value || "").length >= 6;
+}
+
 export default function AuthModal() {
   const {
     user,
@@ -59,6 +68,9 @@ export default function AuthModal() {
   const title = mode === "signup" ? "Регистрация" : "Вход";
 
   const authLabel = !isAuthed ? "—" : isAnon ? "Гость" : user?.email || "Аккаунт";
+  const emailOk = isValidEmail(email);
+  const passwordOk = isValidPassword(password);
+  const canSubmit = emailOk && passwordOk;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -126,16 +138,21 @@ export default function AuthModal() {
             {errorText}
           </div>
         ) : null}
+        {!errorText && (email || password) && !canSubmit ? (
+          <div className="mt-3 rounded-2xl border px-4 py-3 text-sm" style={{ borderColor: "rgba(255,200,120,0.35)" }}>
+            Укажи корректный email и пароль минимум 6 символов.
+          </div>
+        ) : null}
 
         <div className="mt-4 flex flex-col gap-2">
           <button
             type="button"
             className="w-full rounded-full px-5 py-3 text-sm font-semibold"
             style={{ background: THEME.accent, color: "#0B0B0F" }}
-            disabled={busy}
+            disabled={busy || !canSubmit}
             onClick={() => {
               const e = (email || "").trim();
-              if (!e || password.length < 6) return;
+              if (!emailOk || !passwordOk) return;
               if (mode === "signup") signUpEmail(e, password, name.trim());
               else signInEmail(e, password);
             }}
@@ -167,7 +184,7 @@ export default function AuthModal() {
         </div>
 
         <div className="mt-4 text-xs" style={{ color: THEME.muted2 }}>
-          Если вход/регистрация не работают: проверь в Firebase Console, что включён способ авторизации Email/Password.
+          Если вход/регистрация не работают: проверь доступность API и настройки CORS.
         </div>
       </div>
     </div>

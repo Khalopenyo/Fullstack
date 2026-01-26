@@ -80,15 +80,15 @@ export default function CatalogToolbar({
           <option value="sillage">Шлейф</option>
         </select>
 
-        <button
-          type="button"
-          className="inline-flex items-center justify-center gap-2 rounded-full border px-3 py-2 text-xs transition hover:bg-white/[0.06]"
-          style={{ borderColor: THEME.border2, color: THEME.text }}
-          onClick={onOpenFilters}
-        >
-          <SlidersHorizontal className="h-4 w-4" style={{ color: THEME.muted }} />
-          Фильтры
-        </button>
+          <button
+            type="button"
+            className="inline-flex items-center justify-center gap-2 rounded-full border px-3 py-2 text-xs transition hover:bg-white/[0.06]"
+            style={{ borderColor: THEME.border2, color: THEME.text }}
+            onClick={onOpenFilters}
+          >
+            <SlidersHorizontal className="h-4 w-4" style={{ color: THEME.muted }} />
+          Подбери аромат
+          </button>
 
         <button
           type="button"

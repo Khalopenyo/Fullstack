@@ -11,6 +11,7 @@ type Config struct {
 	JWTSecret   string
 	UploadDir   string
 	CORSOrigins []string
+	CookieSecure bool
 }
 
 func LoadConfig() Config {
@@ -20,6 +21,7 @@ func LoadConfig() Config {
 	uploadDir := getEnv("UPLOAD_DIR", "./uploads")
 	corsRaw := getEnv("CORS_ORIGINS", "http://localhost:3000")
 	cors := splitCSV(corsRaw)
+	cookieSecure := strings.EqualFold(getEnv("COOKIE_SECURE", "false"), "true")
 
 	return Config{
 		Addr:        addr,
@@ -27,6 +29,7 @@ func LoadConfig() Config {
 		JWTSecret:   jwtSecret,
 		UploadDir:   uploadDir,
 		CORSOrigins: cors,
+		CookieSecure: cookieSecure,
 	}
 }
 
