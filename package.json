@@ -16,7 +16,7 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "sitemap": "SITE_URL=https://example.com node scripts/generate-sitemap.js",
+    "sitemap": "SITE_URL=https://bakhur.online node scripts/generate-sitemap.js",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",

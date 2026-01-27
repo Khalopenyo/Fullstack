@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const siteUrl = process.env.SITE_URL || 'https://example.com';
+const siteUrl = process.env.SITE_URL || 'https://bakhur.online';
 const dataPath = path.join(__dirname, 'perfumes.json');
 const outPath = path.join(__dirname, '..', 'public', 'sitemap.xml');
 

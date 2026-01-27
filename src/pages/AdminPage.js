@@ -1085,19 +1085,15 @@ export default function AdminPage() {
           >
             <div className="text-sm font-semibold">Нет доступа</div>
             <div className="mt-2 text-sm" style={{ color: THEME.muted }}>
-              1) нажми «Аккаунт» и зайди (не гость),
-              <br />
-              2) запомни email,
-              <br />
-              3) выполни скрипт <b>backend/scripts/set_admin.sh</b> для этого email.
+              
             </div>
           </div>
         ) : (
           <>
             {/* toolbar */}
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between mt-5">
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2">
+              <div className="adminToolbar__row flex items-center gap-2">
+                <div className="adminTabs flex items-center gap-2">
                   <button
                     type="button"
                     className="rounded-full border px-4 py-2 text-sm hover:bg-white/[0.06]"
@@ -1177,138 +1173,140 @@ export default function AdminPage() {
                     Пресеты
                   </button>
                 </div>
-                <input
-                  disabled={adminTab === "orders" || adminTab === "presets" || adminTab === "stock"}
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder={
-                    adminTab === "users"
-                      ? "Поиск по имени / email / UID..."
-                      : adminTab === "presets"
-                      ? "Поиск по пресетам отключён"
-                      : adminTab === "stock"
-                      ? "Поиск по складу справа"
-                      : "Поиск по названию / нотам / тегам..."
-                  }
-                  className="w-full lg:w-[420px] rounded-full border px-4 py-2 text-sm outline-none"
-                  style={{
-                    borderColor: THEME.border2,
-                    background: "rgba(255,255,255,0.03)",
-                    color: THEME.text,
-                  }}
-                />
-                <button
-                  type="button"
-                  className="rounded-full border px-4 py-2 text-sm hover:bg-white/[0.06]"
-                  style={{ borderColor: THEME.border2, color: THEME.text }}
-                  onClick={
-                    adminTab === "orders"
-                      ? loadOrders
-                      : adminTab === "users"
-                      ? loadUsers
-                      : adminTab === "stock"
-                      ? () => {
-                          setStockLoading(true);
-                          listStock({ q: stockQuery, includeUnlimited: stockIncludeUnlimited, low: stockLow })
-                            .then((data) => {
-                              const items = Array.isArray(data?.items) ? data.items : [];
-                              setStock(items);
-                              setStockSummary(data?.summary || { total: items.length, low: 0, zero: 0, unlimited: 0 });
-                            })
-                            .catch((e) => {
-                              console.error(e);
-                              setStock([]);
-                              setStockSummary({ total: 0, low: 0, zero: 0, unlimited: 0 });
-                            })
-                            .finally(() => setStockLoading(false));
-                        }
-                      : adminTab === "presets"
-                      ? loadPresets
-                      : load
-                  }
-                  disabled={
-                    adminTab === "orders"
-                      ? ordersLoading
-                      : adminTab === "users"
-                      ? usersLoading
-                      : adminTab === "stock"
-                      ? stockLoading
-                      : adminTab === "presets"
-                      ? presetsLoading
-                      : loading
-                  }
-                >
-                  {adminTab === "orders"
-                    ? ordersLoading
-                      ? "..."
-                      : "Обновить"
-                    : adminTab === "users"
-                    ? usersLoading
-                      ? "..."
-                      : "Обновить"
-                    : adminTab === "stock"
-                    ? stockLoading
-                      ? "..."
-                      : "Обновить"
-                    : adminTab === "presets"
-                    ? presetsLoading
-                      ? "..."
-                      : "Обновить"
-                    : loading
-                    ? "..."
-                    : "Обновить"}
-                </button>
-                {adminTab === "orders" ? (
-                  <select
-                    value={ordersChannel}
-                    onChange={(e) => setOrdersChannel(e.target.value)}
-                    className="rounded-full border px-4 py-2 text-sm outline-none"
+                <div className="adminToolbar__controls flex items-center gap-2">
+                  <input
+                    disabled={adminTab === "orders" || adminTab === "presets" || adminTab === "stock"}
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    placeholder={
+                      adminTab === "users"
+                        ? "Поиск по имени / email / UID..."
+                        : adminTab === "presets"
+                        ? "Поиск по пресетам отключён"
+                        : adminTab === "stock"
+                        ? ""
+                        : "Поиск по названию / нотам / тегам..."
+                    }
+                    className="w-full lg:w-[420px] rounded-full border px-4 py-2 text-sm outline-none"
                     style={{
                       borderColor: THEME.border2,
                       background: "rgba(255,255,255,0.03)",
                       color: THEME.text,
                     }}
+                  />
+                  <button
+                    type="button"
+                    className="rounded-full border px-4 py-2 text-sm hover:bg-white/[0.06]"
+                    style={{ borderColor: THEME.border2, color: THEME.text }}
+                    onClick={
+                      adminTab === "orders"
+                        ? loadOrders
+                        : adminTab === "users"
+                        ? loadUsers
+                        : adminTab === "stock"
+                        ? () => {
+                            setStockLoading(true);
+                            listStock({ q: stockQuery, includeUnlimited: stockIncludeUnlimited, low: stockLow })
+                              .then((data) => {
+                                const items = Array.isArray(data?.items) ? data.items : [];
+                                setStock(items);
+                                setStockSummary(data?.summary || { total: items.length, low: 0, zero: 0, unlimited: 0 });
+                              })
+                              .catch((e) => {
+                                console.error(e);
+                                setStock([]);
+                                setStockSummary({ total: 0, low: 0, zero: 0, unlimited: 0 });
+                              })
+                              .finally(() => setStockLoading(false));
+                          }
+                        : adminTab === "presets"
+                        ? loadPresets
+                        : load
+                    }
+                    disabled={
+                      adminTab === "orders"
+                        ? ordersLoading
+                        : adminTab === "users"
+                        ? usersLoading
+                        : adminTab === "stock"
+                        ? stockLoading
+                        : adminTab === "presets"
+                        ? presetsLoading
+                        : loading
+                    }
                   >
-                    <option value="all">Все каналы</option>
-                    <option value="wa">WhatsApp</option>
-                    <option value="tg">Telegram</option>
-                    <option value="ig">Instagram</option>
-                  </select>
-                ) : adminTab === "stock" ? (
-                  <>
-                    <input
-                      value={stockQuery}
-                      onChange={(e) => setStockQuery(e.target.value)}
-                      placeholder="Поиск по складу"
+                    {adminTab === "orders"
+                      ? ordersLoading
+                        ? "..."
+                        : "Обновить"
+                      : adminTab === "users"
+                      ? usersLoading
+                        ? "..."
+                        : "Обновить"
+                      : adminTab === "stock"
+                      ? stockLoading
+                        ? "..."
+                        : "Обновить"
+                      : adminTab === "presets"
+                      ? presetsLoading
+                        ? "..."
+                        : "Обновить"
+                      : loading
+                      ? "..."
+                      : "Обновить"}
+                  </button>
+                  {adminTab === "orders" ? (
+                    <select
+                      value={ordersChannel}
+                      onChange={(e) => setOrdersChannel(e.target.value)}
                       className="rounded-full border px-4 py-2 text-sm outline-none"
                       style={{
                         borderColor: THEME.border2,
                         background: "rgba(255,255,255,0.03)",
                         color: THEME.text,
                       }}
-                    />
-                    <label className="inline-flex items-center gap-2 text-xs" style={{ color: THEME.muted }}>
+                    >
+                      <option value="all">Все каналы</option>
+                      <option value="wa">WhatsApp</option>
+                      <option value="tg">Telegram</option>
+                      <option value="ig">Instagram</option>
+                    </select>
+                  ) : adminTab === "stock" ? (
+                    <>
                       <input
-                        type="checkbox"
-                        checked={stockIncludeUnlimited}
-                        onChange={(e) => setStockIncludeUnlimited(e.target.checked)}
+                        value={stockQuery}
+                        onChange={(e) => setStockQuery(e.target.value)}
+                        placeholder="Поиск по складу"
+                        className="rounded-full border px-4 py-2 text-sm outline-none"
+                        style={{
+                          borderColor: THEME.border2,
+                          background: "rgba(255,255,255,0.03)",
+                          color: THEME.text,
+                        }}
                       />
-                      Показывать без лимита
-                    </label>
-                    <input
-                      type="number"
-                      value={stockLow}
-                      onChange={(e) => setStockLow(Math.max(1, Number(e.target.value) || 1))}
-                      className="w-24 rounded-full border px-3 py-2 text-sm outline-none"
-                      style={{
-                        borderColor: THEME.border2,
-                        background: "rgba(255,255,255,0.03)",
-                        color: THEME.text,
-                      }}
-                      title="Порог низкого остатка"
-                    />
-                  </>
-                ) : null}
+                      <label className="inline-flex items-center gap-2 text-xs" style={{ color: THEME.muted }}>
+                        <input
+                          type="checkbox"
+                          checked={stockIncludeUnlimited}
+                          onChange={(e) => setStockIncludeUnlimited(e.target.checked)}
+                        />
+                        Показывать без лимита
+                      </label>
+                      <input
+                        type="number"
+                        value={stockLow}
+                        onChange={(e) => setStockLow(Math.max(1, Number(e.target.value) || 1))}
+                        className="w-24 rounded-full border px-3 py-2 text-sm outline-none"
+                        style={{
+                          borderColor: THEME.border2,
+                          background: "rgba(255,255,255,0.03)",
+                          color: THEME.text,
+                        }}
+                        title="Порог низкого остатка"
+                      />
+                    </>
+                  ) : null}
+                </div>
 
                 {diag?.summary?.warnings ? (
                   <span
@@ -1320,7 +1318,7 @@ export default function AdminPage() {
                     }}
                     title="В данных есть предупреждения"
                   >
-                    ⚠️ warnings: {diag.summary.warnings}
+                     {diag.summary.warnings}
                   </span>
                 ) : null}
               </div>

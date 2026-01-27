@@ -1,48 +1,109 @@
-# Deploy (VPS + managed Postgres + Nginx)
+# Deploy & Update Guide (Manual)
 
-## 1) Подготовь VPS
-- Установи Docker и Docker Compose.
-- Открой порт 80 (и 443, если планируешь HTTPS).
+## 0) One-time info
+- Server IP: 178.209.127.79
+- Domain: https://39donutsgame.ru
+- Project path on server: /opt/parfum/Fullstack
 
-## 2) Managed Postgres
-- Создай БД в облаке.
-- Сохрани строку подключения в формате:
-  `postgres://USER:PASSWORD@HOST:5432/DBNAME?sslmode=require`
+## 1) Make changes on your PC
+In the project folder:
 
-## 3) Настрой переменные
-На VPS в каталоге проекта создай `.env.prod` (или скопируй `deploy/.env.prod.example`):
-```
-DATABASE_URL=postgres://USER:PASSWORD@HOST:5432/DBNAME?sslmode=require
-JWT_SECRET=change-me
-CORS_ORIGINS=https://your-domain.com
-COOKIE_SECURE=true
-PUBLIC_API_URL=https://your-domain.com
+```bash
+git add .
+git commit -m "change"
+git push
 ```
 
-## 4) Запуск контейнеров
-```
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
-```
-
-## 5) Миграции и сид
-Запусти один раз:
-```
-bash deploy/run_migrations.sh
-node backend/scripts/seed_perfumes.mjs
+## 2) Connect to server
+```bash
+ssh root@178.209.127.79
 ```
 
-## 6) HTTPS
-Самый простой вариант:
-- поставить Nginx на VPS (host) и проксировать на контейнер `web:80`,
-- выпустить сертификат через certbot.
+## 3) Pull latest code on server
+```bash
+cd /opt/parfum/Fullstack
+git pull
+```
 
-## 7) CI/CD (GitHub Actions)
-Нужные secrets в репозитории:
-- `VPS_HOST`
-- `VPS_USER`
-- `VPS_SSH_KEY` (private key)
-- `VPS_SSH_PORT` (опционально)
-- `VPS_APP_PATH` (например `/opt/parfum`)
-- `VPS_REPO_URL` (SSH URL репозитория)
+## 4) Run DB migrations (only if DB schema changed)
+```bash
+docker exec -i fullstack_db_1 psql -U parfum -d parfum -v ON_ERROR_STOP=1 <<'SQL'
+CREATE TABLE IF NOT EXISTS schema_migrations (
+  filename text PRIMARY KEY,
+  applied_at timestamptz NOT NULL DEFAULT now()
+);
+SQL
 
-Workflow уже в `.github/workflows/deploy.yml`.
+for f in backend/migrations/*.sql; do
+  name="$(basename "$f")"
+  applied="$(docker exec -i fullstack_db_1 psql -U parfum -d parfum -tAc "SELECT 1 FROM schema_migrations WHERE filename='$name';" | tr -d '[:space:]')"
+  if [ "$applied" != "1" ]; then
+    echo "Applying $name"
+    docker exec -i fullstack_db_1 psql -U parfum -d parfum -v ON_ERROR_STOP=1 < "$f"
+    docker exec -i fullstack_db_1 psql -U parfum -d parfum -v ON_ERROR_STOP=1 -c "INSERT INTO schema_migrations (filename) VALUES ('$name')"
+  else
+    echo "Skipping $name"
+  fi
+done
+```
+
+## 5) Rebuild and restart containers
+```bash
+docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+```
+
+## 6) Check server is working
+```bash
+curl -I https://39donutsgame.ru
+curl -i https://39donutsgame.ru/api/health
+```
+
+## 7) View logs (if something is wrong)
+```bash
+docker-compose -f docker-compose.prod.yml --env-file .env.prod logs --tail=200 web
+docker-compose -f docker-compose.prod.yml --env-file .env.prod logs --tail=200 backend
+docker-compose -f docker-compose.prod.yml --env-file .env.prod logs --tail=200 db
+```
+
+## 8) Restart all services (manual)
+```bash
+docker-compose -f docker-compose.prod.yml --env-file .env.prod down
+docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+```
+
+## 9) Backup database (daily recommended)
+```bash
+/opt/parfum/backup_db.sh
+ls -la /opt/parfum/backups | tail
+```
+
+## 10) After reboot (auto)
+Docker is set to auto-start and containers have restart policy `unless-stopped`.
+If needed:
+```bash
+systemctl start docker
+cd /opt/parfum/Fullstack
+docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d
+```
+
+
+## 11) Autostart after reboot (check)
+Docker should start automatically and containers have `restart: unless-stopped`.
+
+Check Docker service:
+```bash
+systemctl status docker
+systemctl is-enabled docker
+```
+
+If needed, enable and start Docker:
+```bash
+systemctl enable docker
+systemctl start docker
+```
+
+Start containers manually (if they were stopped):
+```bash
+cd /opt/parfum/Fullstack
+docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d
+```

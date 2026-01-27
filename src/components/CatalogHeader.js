@@ -23,7 +23,6 @@ export default function CatalogHeader({
   onOpenHelp,
   onOpenFilters,
   onOpenAuth,
-  onGoWholesale,
   authLabel,
   q,
   onChangeQ,
@@ -60,7 +59,7 @@ export default function CatalogHeader({
             </div>
             <div>
               <div className="text-sm font-semibold" style={{ letterSpacing: 0.2 }}>
-                AS
+                Bakhur
               </div>
               <div className="text-xs" style={{ color: THEME.muted }}>
                 {/* Сертифицированные маслянные ароматы */}
@@ -107,11 +106,6 @@ export default function CatalogHeader({
               style={{ color: cartCount ? THEME.accent : THEME.muted }}
             />
             {cartCount || 0}
-          </PillButton>
-
-          <PillButton onClick={onGoWholesale}>
-            <span className="catalogHeader__text">Оптовый каталог</span>
-            <span className="catalogHeader__text--mobile">Опт</span>
           </PillButton>
 
           <PillButton>

@@ -133,3 +133,7 @@ SEO/маркетинг
 Реальный домен в schema.org, актуальный sitemap, микроразметка товара.
 Мониторинг и бэкапы
 Логи, алерты, регулярные бэкапы Postgres.
+
+cd /opt/parfum/Fullstack
+docker-compose -f docker-compose.prod.yml --env-file .env.prod rm -fsv db
+docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d db

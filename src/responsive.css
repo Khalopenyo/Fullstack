@@ -129,6 +129,38 @@ html, body { width: 100%; }
   .adminListDesktop {
     display: none;
   }
+
+  /* Admin toolbar: keep tabs usable on small screens */
+  .adminToolbar__row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .adminTabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    margin-bottom: -4px;
+    max-width: 100%;
+  }
+
+  .adminTabs button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+
+  .adminToolbar__controls {
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+
+  .adminToolbar__controls > * {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+  }
 }
 
 /* Very small phones */

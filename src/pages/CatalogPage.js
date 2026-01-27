@@ -371,7 +371,6 @@ useEffect(() => {
         onClearQ={() => setQ("")}
         suggestions={searchSuggestions}
         onSelectSuggestion={(s) => setQ([s.name, s.brand].filter(Boolean).join(" "))}
-        onGoWholesale={() => navigate("/wholesale")}
       />
 
       {/*
@@ -408,7 +407,7 @@ useEffect(() => {
               className="mt-4 rounded-2xl border px-4 py-3 text-sm"
               style={{ borderColor: "rgba(255,200,120,0.35)", background: "rgba(255,200,120,0.06)" }}
             >
-              ⚠️ В данных есть предупреждения: {perfumesDiagnostics.summary.warnings}. Каталог не падает, но лучше поправить записи.
+              : {perfumesDiagnostics.summary.warnings}. 
             </div>
           ) : null}
 
@@ -418,7 +417,7 @@ useEffect(() => {
   <div className="mt-5 text-sm opacity-70">Загрузка каталога...</div>
 ) : pageError || perfumesError ? (
   <div className="mt-5 text-sm opacity-70">
-    Не получилось загрузить каталог. Проверь API и подключение.
+    
   </div>
 ) : pageTotal === 0 ? (
   <EmptyResults

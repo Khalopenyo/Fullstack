@@ -184,7 +184,6 @@ export default function AuthModal() {
         </div>
 
         <div className="mt-4 text-xs" style={{ color: THEME.muted2 }}>
-          Если вход/регистрация не работают: проверь доступность API и настройки CORS.
         </div>
       </div>
     </div>
