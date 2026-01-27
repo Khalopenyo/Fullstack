@@ -8,6 +8,12 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      - name: Debug secrets presence
+        run: |
+          echo "repo=${{ github.repository }}"
+          echo "SSH_USER set? ${{ secrets.SSH_USER != '' }}"
+          echo "SSH_PORT set? ${{ secrets.SSH_PORT != '' }}"
+          echo "SSH_KEY set? ${{ secrets.SSH_KEY != '' }}"
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
