@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { fetchPerfumesWithDiagnostics } from "../services/perfumesRepo";
+import { isPrerender } from "../lib/prerender";
 import { loadCart, saveCart } from "../services/cartRepo";
 import { addFavorite, loadFavorites, removeFavorite } from "../services/favoritesRepo";
 import { useAuth } from "./auth";
@@ -135,6 +136,7 @@ export function ShopProvider({ children }) {
 
   useEffect(() => {
     if (!authReady) return;
+    if (isPrerender()) return;
     let alive = true;
 
     setLoadingPerfumes(true);

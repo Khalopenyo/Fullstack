@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { THEME } from "../data/theme";
 import { setCanonical, setMeta, setOpenGraphImage } from "../lib/seo";
+import { isPrerender } from "../lib/prerender";
 import { fetchCatalogWithDiagnostics } from "../services/perfumesRepo";
 
 const WHOLESALE_TIERS = [
@@ -34,6 +35,7 @@ export default function WholesalePage() {
 
   React.useEffect(() => {
     let alive = true;
+    if (isPrerender()) return;
     setLoading(true);
     fetchCatalogWithDiagnostics("wholesale_perfumes")
       .then(({ perfumes }) => {

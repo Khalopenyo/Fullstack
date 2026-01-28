@@ -10,6 +10,7 @@ import { ALL_NOTES_GROUPS} from "../data/perfumes";
 
 import { buildAllNotes, buildDefaultVolumeById } from "../lib/catalog";
 import { setCanonical, setMeta, setOpenGraphImage } from "../lib/seo";
+import { isPrerender } from "../lib/prerender";
 
 import { logStatEvent } from "../services/statsRepo";
 import { computeReviewSummary } from "../services/reviewsRepo";
@@ -53,6 +54,7 @@ useEffect(() => {
 }, []);
 
 useEffect(() => {
+  if (isPrerender()) return;
   let alive = true;
   (async () => {
     try {
@@ -203,6 +205,7 @@ useEffect(() => {
   }, [q, sort, mustNotes, avoidNotes, seasons, dayNight, presetIds]);
 
   useEffect(() => {
+    if (isPrerender()) return;
     let alive = true;
     setPageLoading(true);
     setPageError(null);
