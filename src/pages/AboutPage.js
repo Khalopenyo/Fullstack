@@ -23,7 +23,7 @@ export default function AboutPage() {
         </div>
 
         <div className="mt-6 rounded-3xl border p-6" style={{ borderColor: THEME.border2, background: THEME.bg2 }}>
-          <div className="text-lg font-semibold">О нас</div>
+          <h1 className="text-lg font-semibold">О нас</h1>
           <p className="mt-2 text-sm leading-relaxed" style={{ color: THEME.muted }}>
             Bakhur — это каталог масляных ароматов с фокусом на качество, стойкость и чистую композицию.
             Мы отбираем ароматы по характеру, нотам и сезону, чтобы подбор был точным и удобным.

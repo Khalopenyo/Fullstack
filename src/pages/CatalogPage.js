@@ -84,7 +84,11 @@ useEffect(() => {
   const [avoidNotes, setAvoidNotes] = useState([]);
   const [seasons, setSeasons] = useState([]);
   const [dayNight, setDayNight] = useState([]);
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(() => {
+    if (typeof window === "undefined") return "";
+    const params = new URLSearchParams(window.location.search);
+    return params.get("q") || "";
+  });
   const deferredQ = useDeferredValue(q);
   const [presetIds, setPresetIds] = useState([]);
   const [activePresetId, setActivePresetId] = useState("");
@@ -372,6 +376,7 @@ useEffect(() => {
         suggestions={searchSuggestions}
         onSelectSuggestion={(s) => setQ([s.name, s.brand].filter(Boolean).join(" "))}
       />
+      <h1 className="sr-only">Каталог масляных ароматов</h1>
 
       {/*
         ВАЖНО: десктопную версию НЕ трогаем.

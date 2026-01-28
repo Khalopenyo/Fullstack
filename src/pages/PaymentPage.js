@@ -23,7 +23,7 @@ export default function PaymentPage() {
         </div>
 
         <div className="mt-6 rounded-3xl border p-6" style={{ borderColor: THEME.border2, background: THEME.bg2 }}>
-          <div className="text-lg font-semibold">Оплата</div>
+          <h1 className="text-lg font-semibold">Оплата</h1>
           <p className="mt-2 text-sm leading-relaxed" style={{ color: THEME.muted }}>
             Способ оплаты подтверждаем в переписке после оформления заказа. Доступны удобные варианты,
             которые согласуются с клиентом. Мы всегда уточняем детали перед отправкой.

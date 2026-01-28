@@ -37,7 +37,7 @@ export default function ContactsPage() {
 
         <div className="mt-6 grid gap-6 md:grid-cols-[1fr_360px]">
           <div className="rounded-3xl border p-6" style={{ borderColor: THEME.border2, background: THEME.bg2 }}>
-            <div className="text-lg font-semibold">Контакты</div>
+            <h1 className="text-lg font-semibold">Контакты</h1>
             <div className="mt-3 space-y-3 text-sm" style={{ color: THEME.muted }}>
               <div>
                 <div className="text-xs" style={{ color: THEME.muted2 }}>Адрес</div>

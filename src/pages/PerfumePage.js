@@ -113,7 +113,7 @@ export default function PerfumePage() {
               <div className="text-xs uppercase tracking-wide" style={{ color: THEME.muted2 }}>
                 {perfume.brand}
               </div>
-              <div className="mt-1 text-xl font-semibold">{perfume.name}</div>
+              <h1 className="mt-1 text-xl font-semibold">{perfume.name}</h1>
 
               <div className="mt-4">
                 <div className="text-xs" style={{ color: THEME.muted2 }}>

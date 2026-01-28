@@ -23,7 +23,7 @@ export default function DeliveryPage() {
         </div>
 
         <div className="mt-6 rounded-3xl border p-6" style={{ borderColor: THEME.border2, background: THEME.bg2 }}>
-          <div className="text-lg font-semibold">Доставка</div>
+          <h1 className="text-lg font-semibold">Доставка</h1>
           <p className="mt-2 text-sm leading-relaxed" style={{ color: THEME.muted }}>
             Мы принимаем заказы через мессенджеры и уточняем детали доставки индивидуально. Доступны
             самовывоз и доставка по договоренности. Укажи адрес при оформлении — он попадет в сообщение
