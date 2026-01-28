@@ -14,9 +14,10 @@ try {
 
 const urls = [
   { loc: '/', changefreq: 'daily', priority: '1.0' },
-  { loc: '/wholesale', changefreq: 'weekly', priority: '0.7' },
-  { loc: '/cart', changefreq: 'weekly', priority: '0.3' },
-  { loc: '/favorites', changefreq: 'weekly', priority: '0.3' },
+  { loc: '/about', changefreq: 'monthly', priority: '0.6' },
+  { loc: '/delivery', changefreq: 'monthly', priority: '0.5' },
+  { loc: '/payment', changefreq: 'monthly', priority: '0.5' },
+  { loc: '/contacts', changefreq: 'monthly', priority: '0.6' },
 ];
 
 for (const p of perfumes) {

@@ -17,6 +17,7 @@
   },
   "scripts": {
     "sitemap": "SITE_URL=https://bakhur.online node scripts/generate-sitemap.js",
+    "postbuild": "npm run sitemap",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",

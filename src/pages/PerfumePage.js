@@ -28,15 +28,20 @@ export default function PerfumePage() {
       perfume.description ||
       `Аромат ${perfume.brand} ${perfume.name}. Масляные духи с подбором по нотам, сезонам и времени дня.`;
     setMeta({ title, description: desc });
+    const absoluteImage = perfume.image
+      ? perfume.image.startsWith("http")
+        ? perfume.image
+        : window.location.origin + perfume.image
+      : "";
     setCanonical(window.location.origin + `/perfumes/${perfume.id}`);
-    setOpenGraphImage(perfume.image || (window.location.origin + "/logo192.png"));
+    setOpenGraphImage(absoluteImage || (window.location.origin + "/logo192.png"));
 
     const productLd = {
       "@context": "https://schema.org",
       "@type": "Product",
       name: `${perfume.brand} ${perfume.name}`,
       description: desc,
-      image: perfume.image ? [perfume.image] : undefined,
+      image: absoluteImage ? [absoluteImage] : undefined,
       sku: perfume.id,
       brand: {
         "@type": "Brand",

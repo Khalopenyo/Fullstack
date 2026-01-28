@@ -1,4 +1,8 @@
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /cart
+Disallow: /favorites
 
 Sitemap: https://bakhur.online/sitemap.xml
+Host: bakhur.online
