@@ -17,11 +17,17 @@
   },
   "scripts": {
     "sitemap": "SITE_URL=https://bakhur.online node scripts/generate-sitemap.js",
-    "postbuild": "npm run sitemap",
+    "postbuild": "react-snap && npm run sitemap",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
+  },
+  "reactSnap": {
+    "puppeteerArgs": [
+      "--no-sandbox",
+      "--disable-setuid-sandbox"
+    ]
   },
   "eslintConfig": {
     "extends": [
@@ -42,6 +48,7 @@
     ]
   },
   "devDependencies": {
+    "react-snap": "^1.23.0",
     "tailwindcss": "^3.4.19"
   }
 }
