@@ -4,10 +4,10 @@ import { THEME } from "../data/theme";
 import { SELLER_CONTACTS } from "../data/sellerContacts";
 import { setCanonical, setMeta, setOpenGraphImage } from "../lib/seo";
 
-const CONTACT_ADDRESS = "Город, Улица 1, Дом 1";
-const WORK_HOURS = "Ежедневно 10:00–20:00";
-const PHONE = "+7 000 000-00-00";
-const EMAIL = "info@example.com";
+const CONTACT_ADDRESS = "Грозный,улица.Назарбаева 66";
+const WORK_HOURS = "Ежедневно 9:00–20:00";
+const PHONE = "+7 (928) 071-71-71";
+const EMAIL = "bakhurparfum@mail.ru";
 
 export default function ContactsPage() {
   React.useEffect(() => {
