@@ -376,7 +376,7 @@ useEffect(() => {
         suggestions={searchSuggestions}
         onSelectSuggestion={(s) => setQ([s.name, s.brand].filter(Boolean).join(" "))}
       />
-      <h1 className="sr-only">Каталог масляных ароматов</h1>
+      <h1 style={{ position: "absolute", left: "-9999px" }}>Каталог масляных ароматов</h1>
 
       {/*
         ВАЖНО: десктопную версию НЕ трогаем.
