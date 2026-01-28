@@ -137,3 +137,10 @@ SEO/маркетинг
 cd /opt/parfum/Fullstack
 docker-compose -f docker-compose.prod.yml --env-file .env.prod rm -fsv db
 docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d db
+
+
+
+cd /opt/parfum/Fullstack
+docker-compose -f docker-compose.prod.yml --env-file .env.prod build web
+docker rm -f fullstack_web_1
+docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d --no-deps web
