@@ -24,6 +24,15 @@
     "eject": "react-scripts eject"
   },
   "reactSnap": {
+    "crawl": false,
+    "routes": [
+      "/",
+      "/about",
+      "/delivery",
+      "/payment",
+      "/contacts"
+    ],
+    "skipThirdPartyRequests": true,
     "puppeteerArgs": [
       "--no-sandbox",
       "--disable-setuid-sandbox"
