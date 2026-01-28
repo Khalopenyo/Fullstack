@@ -173,8 +173,16 @@ export default function CheckoutModal({ open, items, total, onClose }) {
       }}
     >
       <div
-        className="w-full max-w-lg rounded-3xl border p-5 max-h-[88vh] overflow-y-auto overflow-x-hidden sm:max-h-none sm:overflow-visible"
-        style={{ borderColor: THEME.border2, background: "#0B0B0F", color: THEME.text }}
+        className="w-full max-w-lg rounded-3xl border p-5"
+        style={{
+          borderColor: THEME.border2,
+          background: "#0B0B0F",
+          color: THEME.text,
+          maxHeight: "88vh",
+          overflowY: "auto",
+          overflowX: "hidden",
+          WebkitOverflowScrolling: "touch",
+        }}
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-4">
