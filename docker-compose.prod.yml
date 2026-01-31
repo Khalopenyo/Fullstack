@@ -1,4 +1,17 @@
 services:
+  caddy:
+    image: caddy:2
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+    restart: unless-stopped
+
   backend:
     build:
       context: .
@@ -20,11 +33,11 @@ services:
       dockerfile: frontend/Dockerfile
       args:
         REACT_APP_API_URL: "${PUBLIC_API_URL}"
-    ports:
-      - "80:80"
     depends_on:
       - backend
     restart: unless-stopped
 
 volumes:
   uploads:
+  caddy_data:
+  caddy_config:
