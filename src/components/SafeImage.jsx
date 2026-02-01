@@ -7,7 +7,7 @@ export default function SafeImage({
   fallbackSrc = "/placeholder-perfume.svg",
   ...rest
 }) {
-  const apiBase = process.env.REACT_APP_API_URL || "";
+  const apiBase = import.meta.env.VITE_API_URL || "";
   const resolvedSrc = src && src.startsWith("/uploads/") && apiBase ? `${apiBase}${src}` : src;
   const [current, setCurrent] = React.useState(resolvedSrc || fallbackSrc);
 

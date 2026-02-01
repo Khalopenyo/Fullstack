@@ -50,7 +50,7 @@ export CORS_ORIGINS="http://localhost:3001"
 ## Переменные окружения
 
 Фронтенд (`.env.local`):
-- `REACT_APP_API_URL=http://localhost:8080`
+- `VITE_API_URL=http://localhost:8080`
 
 Бэкенд (`backend/.env`):
 - `ADDR=:8080`
@@ -144,3 +144,25 @@ cd /opt/parfum/Fullstack
 docker-compose -f docker-compose.prod.yml --env-file .env.prod build web
 docker rm -f fullstack_web_1
 docker-compose -f docker-compose.prod.yml --env-file .env.prod up -d --no-deps web
+Высокий риск — несовместимый стек зависимостей: CRA (react-scripts@5) официально не поддерживает React 19 и React Router 7, это может ломать build/SSR/DevServer и обновления безопасности. package.json
+Высокий риск — утечка идентификатора пользователя в отзывах даже при is_anonymous=true (id пользователя отдаётся в ответе). Это нарушение приватности. handlers.go, types.go
+Высокий риск — CI/CD запускает деплой на прод по пушу без тестов/линта и без проверок хоста; плюс отладочные логи про секреты. Уязвимо и нестабильно. deploy.yml
+Средний риск — workflow ссылается на deploy.sh, но в репозитории его нет (есть только run_migrations.sh): деплой может падать или расходиться с документацией. deploy.yml, run_migrations.sh
+Средний риск — список товаров без пагинации при дефолтном запросе возвращает весь каталог; при росте базы будет тормозить и бить по памяти. handlers.go
+Средний риск — нет контрольных ограничений на данные в БД (rating 1..5, total >= 0 и т.д.), всё держится на валидации в коде. 001_init.sql
+Средний риск — Nginx не выставляет security‑/cache‑headers, нет gzip/brotli: хуже безопасность и производительность статики. nginx.conf
+Средний риск — SEO sitemap строится из perfumes.json, а не из БД: при изменении каталога sitemap устаревает. generate-sitemap.js, sitemap.xml
+Средний риск — подавление ошибок ResizeObserver и подмена console.error/console.warn скрывает реальные проблемы в проде/деве. index.js
+Низкий риск — модальные окна без focus‑trap и Esc‑закрытия: доступность и UX для клавиатуры/скринридеров. Modal.js
+Низкий риск — большой «монолит» админки усложняет сопровождение и тестирование. AdminPage.js
+Низкий риск — в репозитории есть артефакты прошлой Firebase‑архитектуры (rules/hosting/scripts). Если Firebase не используется, лучше удалить, иначе держать актуальными. firebase.json, firestore.rules, seed-firestore.js, update-storage-cache.js
+Вопросы/предположения
+
+TLS завершается внешним прокси/балансером? Если да — где конфиг HSTS и строгие headers?
+serviceAccountKey.json уже в истории git или только локально? Нужна ротация, если ключ публиковался.
+Firebase всё ещё используется в проде или это legacy? Если используется — правила и ключи должны быть под контролем.
+Домен/сервер в DEPLOY.md и workflow — актуальные? Сейчас в репе жёстко зашит IP. DEPLOY.md, deploy.yml
+Есть ли SLA по SEO/индексации? Сейчас sitemap статический и требует ручной синхронизации.
+Change summary
+
+Изменений в коде не делал; только аудит.

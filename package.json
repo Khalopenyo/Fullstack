@@ -12,31 +12,16 @@
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-router-dom": "^7.11.0",
-    "react-scripts": "5.0.1",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
     "sitemap": "SITE_URL=https://bakhur.online node scripts/generate-sitemap.js",
-    "postbuild": "react-snap && npm run sitemap",
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
-  },
-  "reactSnap": {
-    "crawl": false,
-    "routes": [
-      "/",
-      "/about",
-      "/delivery",
-      "/payment",
-      "/contacts"
-    ],
-    "skipThirdPartyRequests": true,
-    "puppeteerArgs": [
-      "--no-sandbox",
-      "--disable-setuid-sandbox"
-    ]
+    "postbuild": "npm run sitemap",
+    "dev": "vite",
+    "start": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "echo \"No tests configured for Vite yet\""
   },
   "eslintConfig": {
     "extends": [
@@ -57,7 +42,8 @@
     ]
   },
   "devDependencies": {
-    "react-snap": "^1.23.0",
-    "tailwindcss": "^3.4.19"
+    "@vitejs/plugin-react": "^4.3.4",
+    "tailwindcss": "^3.4.19",
+    "vite": "^5.4.10"
   }
 }

@@ -45,8 +45,8 @@ root.render(
   <BrowserRouter>
     <AuthProvider>
       <ShopProvider>
-      <App />
-    </ShopProvider>
+        <App />
+      </ShopProvider>
     </AuthProvider>
   </BrowserRouter>
 );

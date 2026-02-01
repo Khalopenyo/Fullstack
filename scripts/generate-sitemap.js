@@ -4,7 +4,7 @@ const path = require('path');
 const siteUrl = process.env.SITE_URL || 'https://bakhur.online';
 const dataPath = path.join(__dirname, 'perfumes.json');
 const publicPath = path.join(__dirname, '..', 'public', 'sitemap.xml');
-const buildPath = path.join(__dirname, '..', 'build', 'sitemap.xml');
+const buildPath = path.join(__dirname, '..', 'dist', 'sitemap.xml');
 
 let perfumes = [];
 try {
@@ -36,6 +36,6 @@ const xml = [
   ''
 ].join('\n');
 
-const outPath = fs.existsSync(path.join(__dirname, '..', 'build')) ? buildPath : publicPath;
+const outPath = fs.existsSync(path.join(__dirname, '..', 'dist')) ? buildPath : publicPath;
 fs.writeFileSync(outPath, xml, 'utf8');
 console.log('sitemap.xml generated:', outPath);
