@@ -11,7 +11,7 @@ export default function PerfumePage() {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  const { perfumesById, loadingPerfumes, favorites, toggleFavorite, addToCart } = useShop();
+  const { perfumes, perfumesById, loadingPerfumes, favorites, toggleFavorite, addToCart } = useShop();
 
   const perfume = useMemo(() => (id ? perfumesById[id] : null), [id, perfumesById]);
   const [volume, setVolume] = React.useState(50);
@@ -34,7 +34,13 @@ export default function PerfumePage() {
         : window.location.origin + perfume.image
       : "";
     setCanonical(window.location.origin + `/perfumes/${perfume.id}`);
-    setOpenGraphImage(absoluteImage || (window.location.origin + "/logo192.png"));
+    setOpenGraphImage(absoluteImage || (window.location.origin + "/favicon.ico"));
+
+    const priceValidUntil = (() => {
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 1);
+      return d.toISOString().slice(0, 10);
+    })();
 
     const productLd = {
       "@context": "https://schema.org",
@@ -51,11 +57,36 @@ export default function PerfumePage() {
         "@type": "Offer",
         price: price,
         priceCurrency: perfume.currency || "RUB",
+        url: window.location.origin + `/perfumes/${perfume.id}`,
+        priceValidUntil,
+        itemCondition: "https://schema.org/NewCondition",
         availability: perfume.inStock === false ? "https://schema.org/OutOfStock" : "https://schema.org/InStock",
       },
     };
     setJsonLd("jsonld-product", productLd);
-    return () => clearJsonLd("jsonld-product");
+    const breadcrumbLd = {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        {
+          "@type": "ListItem",
+          position: 1,
+          name: "Главная",
+          item: window.location.origin + "/",
+        },
+        {
+          "@type": "ListItem",
+          position: 2,
+          name: `${perfume.brand} ${perfume.name}`,
+          item: window.location.origin + `/perfumes/${perfume.id}`,
+        },
+      ],
+    };
+    setJsonLd("jsonld-breadcrumb", breadcrumbLd);
+    return () => {
+      clearJsonLd("jsonld-product");
+      clearJsonLd("jsonld-breadcrumb");
+    };
   }, [perfume, price]);
 
   if (loadingPerfumes && !perfume) {
@@ -86,6 +117,43 @@ export default function PerfumePage() {
 
   const liked = favorites.includes(perfume.id);
   const price = priceForVolume(perfume.basePrice ?? perfume.price, volume, perfume.baseVolume, mix);
+  const noteLinks = useMemo(() => {
+    if (!perfume?.notes) return [];
+    const all = [
+      ...(perfume.notes.top || []),
+      ...(perfume.notes.heart || []),
+      ...(perfume.notes.base || []),
+    ]
+      .map((n) => String(n || "").trim())
+      .filter(Boolean);
+    const uniq = Array.from(new Set(all));
+    return uniq.slice(0, 10);
+  }, [perfume]);
+
+  const relatedPerfumes = useMemo(() => {
+    if (!perfume || !Array.isArray(perfumes)) return [];
+    const noteSet = new Set(noteLinks.map((n) => n.toLowerCase()));
+    const brand = String(perfume.brand || "").toLowerCase();
+    const scored = perfumes
+      .filter((p) => p && p.id && p.id !== perfume.id)
+      .map((p) => {
+        const pBrand = String(p.brand || "").toLowerCase();
+        const pNotes = [
+          ...(p.notes?.top || []),
+          ...(p.notes?.heart || []),
+          ...(p.notes?.base || []),
+        ].map((n) => String(n || "").toLowerCase());
+        let score = 0;
+        if (brand && pBrand === brand) score += 5;
+        for (const n of pNotes) {
+          if (noteSet.has(n)) score += 1;
+        }
+        return { perfume: p, score };
+      })
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score || String(a.perfume.name || "").localeCompare(String(b.perfume.name || "")));
+    return scored.slice(0, 6).map((x) => x.perfume);
+  }, [perfume, perfumes, noteLinks]);
 
   return (
     <div className="min-h-screen" style={{ background: THEME.bg, color: THEME.text }}>
@@ -105,6 +173,9 @@ export default function PerfumePage() {
               <SafeImage
                 src={perfume.image}
                 alt={perfume.brand + " " + perfume.name}
+                loading="eager"
+                decoding="async"
+                fetchpriority="high"
                 className="h-full w-full object-cover"
               />
             </div>
@@ -207,6 +278,70 @@ export default function PerfumePage() {
                 </div>
               </div>
             </div>
+
+            <div className="mt-6 rounded-2xl border p-4" style={{ borderColor: THEME.border2 }}>
+              <div className="text-xs" style={{ color: THEME.muted2 }}>
+                Бренд
+              </div>
+              <div className="mt-2">
+                <Link
+                  to={`/?q=${encodeURIComponent(perfume.brand || "")}`}
+                  className="inline-flex items-center rounded-full border px-3 py-2 text-sm"
+                  style={{ borderColor: THEME.border2, color: THEME.text }}
+                >
+                  Все ароматы бренда {perfume.brand || "Bakhur"}
+                </Link>
+              </div>
+            </div>
+
+            {noteLinks.length ? (
+              <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: THEME.border2 }}>
+                <div className="text-xs" style={{ color: THEME.muted2 }}>
+                  По нотам
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {noteLinks.map((note) => (
+                    <Link
+                      key={note}
+                      to={`/?q=${encodeURIComponent(note)}`}
+                      className="inline-flex items-center rounded-full border px-3 py-1.5 text-xs"
+                      style={{ borderColor: THEME.border2, color: THEME.text }}
+                    >
+                      {note}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {relatedPerfumes.length ? (
+              <div className="mt-6">
+                <div className="text-lg font-semibold">Похожие ароматы</div>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  {relatedPerfumes.map((p) => (
+                    <Link
+                      key={p.id}
+                      to={`/perfumes/${p.id}`}
+                      className="flex items-center gap-3 rounded-2xl border p-3 hover:bg-white/[0.04]"
+                      style={{ borderColor: THEME.border2, color: THEME.text }}
+                    >
+                      <div
+                        className="h-16 w-16 overflow-hidden rounded-xl border"
+                        style={{ borderColor: THEME.border2, background: "rgba(255,255,255,0.02)" }}
+                      >
+                        <SafeImage src={p.image} alt={p.name} className="h-full w-full object-cover" />
+                      </div>
+                      <div>
+                        <div className="text-xs" style={{ color: THEME.muted2 }}>
+                          {p.brand}
+                        </div>
+                        <div className="text-sm font-semibold">{p.name}</div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
             <div className="mt-6">
               <button

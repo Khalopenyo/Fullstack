@@ -19,24 +19,31 @@ function buildPages(current, total) {
     .sort((a, b) => a - b);
 }
 
-export default function PaginationBar({ page, totalPages, onPageChange }) {
+export default function PaginationBar({ page, totalPages, onPageChange, makeHref }) {
   const safePage = clamp(page || 1, 1, totalPages || 1);
   const pages = useMemo(() => buildPages(safePage, totalPages), [safePage, totalPages]);
 
   const go = (p) => onPageChange(clamp(p, 1, totalPages));
+  const hrefFor = (p) => (makeHref ? makeHref(p) : `/?page=${p}`);
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <button
-        type="button"
+      <a
         className="rounded-full border px-3 py-2 text-sm transition hover:bg-white/[0.06] disabled:opacity-40"
         style={{ borderColor: THEME.border2, color: THEME.text }}
-        onClick={() => go(safePage - 1)}
-        disabled={safePage <= 1}
+        href={hrefFor(Math.max(1, safePage - 1))}
+        onClick={(e) => {
+          if (safePage <= 1) {
+            e.preventDefault();
+            return;
+          }
+          go(safePage - 1);
+        }}
+        aria-disabled={safePage <= 1}
       >
         <span className="sm:hidden">←</span>
         <span className="hidden sm:inline-flex">← Назад</span>
-      </button>
+      </a>
 
       <div className="flex flex-wrap items-center gap-2">
         {pages.map((p, idx) => {
@@ -45,33 +52,43 @@ export default function PaginationBar({ page, totalPages, onPageChange }) {
           return (
             <React.Fragment key={p}>
               {needDots ? <span className="px-1 opacity-60">…</span> : null}
-              <button
-                type="button"
+              <a
                 className="rounded-full border px-3 py-2 text-sm transition hover:bg-white/[0.06]"
                 style={
                   p === safePage
                     ? { borderColor: THEME.accentRing, background: THEME.accentSoft, color: THEME.text }
                     : { borderColor: THEME.border2, color: THEME.text }
                 }
-                onClick={() => go(p)}
+                href={hrefFor(p)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  go(p);
+                }}
+                aria-current={p === safePage ? "page" : undefined}
               >
                 {p}
-              </button>
+              </a>
             </React.Fragment>
           );
         })}
       </div>
 
-      <button
-        type="button"
+      <a
         className="rounded-full border px-3 py-2 text-sm transition hover:bg-white/[0.06] disabled:opacity-40"
         style={{ borderColor: THEME.border2, color: THEME.text }}
-        onClick={() => go(safePage + 1)}
-        disabled={safePage >= totalPages}
+        href={hrefFor(Math.min(totalPages, safePage + 1))}
+        onClick={(e) => {
+          if (safePage >= totalPages) {
+            e.preventDefault();
+            return;
+          }
+          go(safePage + 1);
+        }}
+        aria-disabled={safePage >= totalPages}
       >
         <span className="sm:hidden">→</span>
         <span className="hidden sm:inline-flex">Вперёд →</span>
-      </button>
+      </a>
 
       <span className="ml-1 hidden text-sm opacity-70 sm:inline-flex">Страница {safePage} из {totalPages}</span>
     </div>

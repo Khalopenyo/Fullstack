@@ -9,7 +9,7 @@ import { THEME } from "../data/theme";
 import { ALL_NOTES_GROUPS} from "../data/perfumes";
 
 import { buildAllNotes, buildDefaultVolumeById } from "../lib/catalog";
-import { setCanonical, setMeta, setOpenGraphImage } from "../lib/seo";
+import { clearJsonLd, setCanonical, setJsonLd, setMeta, setOpenGraphImage, setRobots } from "../lib/seo";
 import { isPrerender } from "../lib/prerender";
 
 import { logStatEvent } from "../services/statsRepo";
@@ -20,6 +20,7 @@ import PerfumeCard from "../components/PerfumeCard";
 import CatalogFilters from "../components/Filters";
 import MobileFiltersSheet from "../components/MobileFiltersSheet";
 import HelpModal from "../components/HelpModal";
+import FaqModal from "../components/FaqModal";
 import PerfumeDetailsModal from "../components/PerfumeDetailsModal";
 
 import CatalogHeader from "../components/CatalogHeader";
@@ -50,7 +51,39 @@ useEffect(() => {
     description: "Каталог масляных ароматов: подбор по нотам, сезонам и времени дня. Заказ через мессенджеры.",
   });
   setCanonical(window.location.origin + "/");
-  setOpenGraphImage(window.location.origin + "/logo192.png");
+  setOpenGraphImage(window.location.origin + "/favicon.ico");
+  const faqLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        "@type": "Question",
+        name: "Как пользоваться подбором по нотам?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Выберите ноты в фильтрах — мы покажем ароматы, где они присутствуют в пирамиде.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Можно ли подобрать аромат по сезону и времени дня?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Да, используйте фильтры «Сезоны» и «Время дня», чтобы сузить выбор.",
+        },
+      },
+      {
+        "@type": "Question",
+        name: "Что делать, если ничего не найдено?",
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: "Очистите часть фильтров или поиск — так можно расширить список подходящих ароматов.",
+        },
+      },
+    ],
+  };
+  setJsonLd("jsonld-faq-catalog", faqLd);
+  return () => clearJsonLd("jsonld-faq-catalog");
 }, []);
 
 useEffect(() => {
@@ -176,9 +209,15 @@ useEffect(() => {
 
   const [filtersOpenMobile, setFiltersOpenMobile] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [faqOpen, setFaqOpen] = useState(false);
   // Пагинация (чтобы каталог не превращался в бесконечную колонну)
   const PAGE_SIZE = 6; // поменяй на 8/16/24 если нужно
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(() => {
+    if (typeof window === "undefined") return 1;
+    const params = new URLSearchParams(window.location.search);
+    const raw = Number(params.get("page"));
+    return Number.isFinite(raw) && raw > 0 ? raw : 1;
+  });
   const [pageItems, setPageItems] = useState([]);
   const [pageTotal, setPageTotal] = useState(0);
   const [pageLoading, setPageLoading] = useState(false);
@@ -203,6 +242,36 @@ useEffect(() => {
   useEffect(() => {
     setPage(1);
   }, [q, sort, mustNotes, avoidNotes, seasons, dayNight, presetIds]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const current = Number(params.get("page")) || 1;
+    if (current === page || page <= 1) {
+      if (page <= 1 && params.has("page")) {
+        params.delete("page");
+        const next = params.toString();
+        navigate(next ? `/?${next}` : "/", { replace: true });
+      }
+      return;
+    }
+    params.set("page", String(page));
+    const next = params.toString();
+    navigate(next ? `/?${next}` : "/", { replace: true });
+  }, [page, navigate]);
+
+  useEffect(() => {
+    const hasFilters =
+      Boolean(q) ||
+      mustNotes.length ||
+      avoidNotes.length ||
+      seasons.length ||
+      dayNight.length ||
+      presetIds.length ||
+      sort !== "popular" ||
+      page > 1;
+    setRobots(hasFilters ? "noindex,follow" : "index,follow");
+  }, [q, mustNotes, avoidNotes, seasons, dayNight, presetIds, sort, page]);
 
   useEffect(() => {
     if (isPrerender()) return;
@@ -474,7 +543,21 @@ useEffect(() => {
 
           {pageTotal > PAGE_SIZE ? (
             <div className="mt-5">
-              <PaginationBar page={page} totalPages={totalPages} onPageChange={setPage} />
+              <PaginationBar
+                page={page}
+                totalPages={totalPages}
+                onPageChange={setPage}
+                makeHref={(p) => {
+                  const params = new URLSearchParams(window.location.search);
+                  if (p <= 1) {
+                    params.delete("page");
+                  } else {
+                    params.set("page", String(p));
+                  }
+                  const qs = params.toString();
+                  return qs ? `/?${qs}` : "/";
+                }}
+              />
             </div>
           ) : null}
 
@@ -514,7 +597,9 @@ useEffect(() => {
         }}
       />
 
-      <CatalogFooter onOpenHelp={() => setHelpOpen(true)} />
+      <FaqModal open={faqOpen} onClose={() => setFaqOpen(false)} />
+
+      <CatalogFooter onOpenHelp={() => setHelpOpen(true)} onOpenFaq={() => setFaqOpen(true)} />
     </div>
   );
 }

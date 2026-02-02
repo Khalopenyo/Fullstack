@@ -10,6 +10,7 @@ import { fetchCatalogWithDiagnostics, upsertPerfume, deletePerfume } from "../se
 import { uploadPerfumeImage } from "../services/storageRepo";
 import { listOrders, updateOrder, deleteOrder, listUsers, setUserAdmin, deleteUser, listPresets, savePreset, deletePreset, listStock, updateStock } from "../services/adminApi";
 import PaginationBar from "../components/PaginationBar";
+import { setRobots } from "../lib/seo";
 
 const SEASONS = ["Зима", "Весна", "Лето", "Осень"];
 const DAYNIGHT = ["Утро", "День", "Вечер", "Ночь"];
@@ -228,6 +229,10 @@ function EditorModal({ open, title, onClose, children, footer }) {
 export default function AdminPage() {
   const nav = useNavigate();
   const { user, authReady, openAuthModal } = useAuth();
+
+  React.useEffect(() => {
+    setRobots("noindex,follow");
+  }, []);
 
   const ADMIN_TAB_KEY = "admin:tab";
   const uid = user?.uid || "";

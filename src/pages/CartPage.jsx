@@ -5,7 +5,7 @@ import SafeImage from "../components/SafeImage";
 import CheckoutModal from "../components/CheckoutModal";
 import { useShop } from "../state/shop";
 import { priceForVolume } from "../lib/scoring";
-import { setCanonical, setMeta, setOpenGraphImage } from "../lib/seo";
+import { setCanonical, setMeta, setOpenGraphImage, setRobots } from "../lib/seo";
 
 export default function CartPage() {
   const { cart, removeFromCart, setQty, perfumesById } = useShop();
@@ -17,6 +17,7 @@ export default function CartPage() {
     });
     setCanonical(window.location.origin + "/cart");
     setOpenGraphImage(window.location.origin + "/logo192.png");
+    setRobots("noindex,follow");
   }, []);
 
   const items = useMemo(() => {

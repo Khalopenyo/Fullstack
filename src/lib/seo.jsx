@@ -22,6 +22,18 @@ export function setMeta({ title, description }) {
   }
 }
 
+export function setRobots(content) {
+  if (typeof document === "undefined") return;
+  if (!content) return;
+  let node = document.querySelector('meta[name="robots"]');
+  if (!node) {
+    node = document.createElement("meta");
+    node.setAttribute("name", "robots");
+    document.head.appendChild(node);
+  }
+  node.setAttribute("content", content);
+}
+
 export function setCanonical(url) {
   if (typeof document === "undefined") return;
   if (!url) return;

@@ -1,7 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { THEME } from "../data/theme";
-import { setCanonical, setMeta, setOpenGraphImage } from "../lib/seo";
+import { clearJsonLd, setCanonical, setJsonLd, setMeta, setOpenGraphImage } from "../lib/seo";
 
 export default function DeliveryPage() {
   React.useEffect(() => {
@@ -11,6 +11,38 @@ export default function DeliveryPage() {
     });
     setCanonical(window.location.origin + "/delivery");
     setOpenGraphImage(window.location.origin + "/logo192.png");
+    const faqLd = {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: [
+        {
+          "@type": "Question",
+          name: "Сколько занимает доставка?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Срок зависит от города и выбранного способа доставки. Точные сроки уточняем после оформления заказа.",
+          },
+        },
+        {
+          "@type": "Question",
+          name: "Сколько стоит доставка?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Стоимость рассчитывается индивидуально и зависит от адреса и объема заказа. Напиши нам — подскажем лучший вариант.",
+          },
+        },
+        {
+          "@type": "Question",
+          name: "Есть ли самовывоз?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Самовывоз возможен по договоренности. Детали подтвердим в переписке.",
+          },
+        },
+      ],
+    };
+    setJsonLd("jsonld-faq-delivery", faqLd);
+    return () => clearJsonLd("jsonld-faq-delivery");
   }, []);
 
   return (
@@ -31,6 +63,30 @@ export default function DeliveryPage() {
           </p>
           <div className="mt-4 text-sm" style={{ color: THEME.muted }}>
             Сроки и стоимость зависят от города и объема заказа. Напиши нам — подскажем лучшие условия.
+          </div>
+        </div>
+
+        <div className="mt-6 rounded-3xl border p-6" style={{ borderColor: THEME.border2, background: THEME.bg2 }}>
+          <div className="text-lg font-semibold">Вопросы по доставке</div>
+          <div className="mt-3 space-y-3">
+            <div>
+              <div className="text-sm font-semibold">Сколько занимает доставка?</div>
+              <div className="mt-1 text-sm" style={{ color: THEME.muted }}>
+                Срок зависит от города и выбранного способа доставки. Точные сроки уточняем после оформления заказа.
+              </div>
+            </div>
+            <div>
+              <div className="text-sm font-semibold">Сколько стоит доставка?</div>
+              <div className="mt-1 text-sm" style={{ color: THEME.muted }}>
+                Стоимость рассчитывается индивидуально и зависит от адреса и объема заказа.
+              </div>
+            </div>
+            <div>
+              <div className="text-sm font-semibold">Есть ли самовывоз?</div>
+              <div className="mt-1 text-sm" style={{ color: THEME.muted }}>
+                Самовывоз возможен по договоренности. Детали подтвердим в переписке.
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { fetchPerfumesWithDiagnostics } from "../services/perfumesRepo";
 import { isPrerender } from "../lib/prerender";
 import { loadCart, saveCart } from "../services/cartRepo";
@@ -50,6 +50,7 @@ export function ShopProvider({ children }) {
   const [perfumesError, setPerfumesError] = useState(null);
   const [perfumesDiagnostics, setPerfumesDiagnostics] = useState(null);
   const [guestHydrated, setGuestHydrated] = useState(false);
+  const prerenderSignaled = useRef(false);
 
   const isRealUser = Boolean(user && !user.isAnonymous);
 
@@ -164,6 +165,26 @@ export function ShopProvider({ children }) {
       alive = false;
     };
   }, [authReady]);
+
+  useEffect(() => {
+    if (prerenderSignaled.current) return;
+    if (!authReady) return;
+    if (typeof document === "undefined") return;
+    const injected = window.__PRERENDER_INJECTED && window.__PRERENDER_INJECTED.prerender;
+    const isHeadless = String(navigator?.userAgent || "").includes("HeadlessChrome");
+    if (!injected && !isHeadless) return;
+    if (!loadingPerfumes) {
+      prerenderSignaled.current = true;
+      document.dispatchEvent(new Event("prerender-ready"));
+      return;
+    }
+    const timer = setTimeout(() => {
+      if (prerenderSignaled.current) return;
+      prerenderSignaled.current = true;
+      document.dispatchEvent(new Event("prerender-ready"));
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [authReady, loadingPerfumes]);
 
   const perfumesById = useMemo(() => {
     const m = {};

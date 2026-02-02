@@ -1,8 +1,41 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import vitePrerender from "vite-plugin-prerender";
+import fs from "fs";
+import path from "path";
+
+function buildPrerenderRoutes() {
+  const routes = ["/", "/about", "/delivery", "/payment", "/contacts"];
+  const dataPath = path.join(__dirname, "scripts", "perfumes.json");
+  try {
+    const raw = fs.readFileSync(dataPath, "utf8");
+    const items = JSON.parse(raw);
+    if (Array.isArray(items)) {
+      for (const item of items) {
+        if (item && item.id) routes.push(`/perfumes/${item.id}`);
+      }
+    }
+  } catch (e) {
+    console.warn("Prerender: failed to read perfumes.json:", e.message);
+  }
+  return routes;
+}
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    vitePrerender({
+      staticDir: path.join(__dirname, "dist"),
+      routes: buildPrerenderRoutes(),
+      renderer: new vitePrerender.PuppeteerRenderer({
+        injectProperty: "__PRERENDER_INJECTED",
+        inject: { prerender: true },
+        renderAfterTime: 4000,
+        navigationOptions: { waitUntil: "domcontentloaded", timeout: 30000 },
+        maxConcurrentRoutes: 4,
+      }),
+    }),
+  ],
   optimizeDeps: {
     esbuildOptions: {
       jsx: "automatic",

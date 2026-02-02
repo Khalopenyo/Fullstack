@@ -2,6 +2,7 @@ import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { THEME } from "../data/theme";
 import { useAuth } from "../state/auth";
+import { setRobots } from "../lib/seo";
 
 function isValidEmail(value) {
   const v = String(value || "").trim();
@@ -28,6 +29,10 @@ export default function AuthPage() {
   const emailOk = isValidEmail(email);
   const passwordOk = isValidPassword(password);
   const canSubmit = emailOk && passwordOk;
+
+  React.useEffect(() => {
+    setRobots("noindex,follow");
+  }, []);
 
   return (
     <div className="min-h-screen p-6" style={{ background: THEME.bg, color: THEME.text }}>

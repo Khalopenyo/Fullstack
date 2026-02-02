@@ -5,6 +5,9 @@ export default function SafeImage({
   alt,
   className,
   fallbackSrc = "/placeholder-perfume.svg",
+  loading = "lazy",
+  decoding = "async",
+  fetchpriority,
   ...rest
 }) {
   const apiBase = import.meta.env.VITE_API_URL || "";
@@ -20,6 +23,9 @@ export default function SafeImage({
       src={current || fallbackSrc}
       alt={alt}
       className={className}
+      loading={loading}
+      decoding={decoding}
+      fetchpriority={fetchpriority}
       onError={() => {
         if (current !== fallbackSrc) setCurrent(fallbackSrc);
       }}

@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { useShop } from "../state/shop";
 import { THEME } from "../data/theme";
 import PerfumeCard from "../components/PerfumeCard";
-import { setCanonical, setMeta, setOpenGraphImage } from "../lib/seo";
+import { setCanonical, setMeta, setOpenGraphImage, setRobots } from "../lib/seo";
 
 export default function FavoritesPage() {
   const navigate = useNavigate();
@@ -22,6 +22,7 @@ export default function FavoritesPage() {
     });
     setCanonical(window.location.origin + "/favorites");
     setOpenGraphImage(window.location.origin + "/logo192.png");
+    setRobots("noindex,follow");
   }, []);
 
   // Находим парфюмы по ID из избранного
