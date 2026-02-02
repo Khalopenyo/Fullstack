@@ -1,5 +1,8 @@
 bakhur.online {
   encode gzip zstd
+  request_body {
+    max_size 20MB
+  }
   reverse_proxy web:80
 
   header {

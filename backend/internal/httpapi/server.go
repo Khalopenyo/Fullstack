@@ -269,7 +269,7 @@ func readJSON(r *http.Request, v interface{}) error {
 }
 
 func (s *Server) handleUploadPerfumeImage(w http.ResponseWriter, r *http.Request) {
-	const maxUploadSize = 10 << 20
+	const maxUploadSize = 20 << 20
 	perfumeID := chi.URLParam(r, "id")
 	if perfumeID == "" {
 		writeError(w, http.StatusBadRequest, "missing perfume id")
