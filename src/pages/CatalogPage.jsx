@@ -51,7 +51,7 @@ useEffect(() => {
     description: "Каталог масляных ароматов: подбор по нотам, сезонам и времени дня. Заказ через мессенджеры.",
   });
   setCanonical(window.location.origin + "/");
-  setOpenGraphImage(window.location.origin + "/favicon.ico");
+  setOpenGraphImage(window.location.origin + "/og-home.png");
   const faqLd = {
     "@context": "https://schema.org",
     "@type": "FAQPage",

@@ -10,7 +10,7 @@ export default function PaymentPage() {
       description: "Способы оплаты и подтверждение заказа.",
     });
     setCanonical(window.location.origin + "/payment");
-    setOpenGraphImage(window.location.origin + "/logo192.png");
+    setOpenGraphImage(window.location.origin + "/og-home.png");
     const faqLd = {
       "@context": "https://schema.org",
       "@type": "FAQPage",

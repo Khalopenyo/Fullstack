@@ -21,7 +21,7 @@ export default function FavoritesPage() {
       description: "Сохраняй любимые ароматы и возвращайся к ним позже.",
     });
     setCanonical(window.location.origin + "/favorites");
-    setOpenGraphImage(window.location.origin + "/logo192.png");
+    setOpenGraphImage(window.location.origin + "/og-home.png");
     setRobots("noindex,follow");
   }, []);
 

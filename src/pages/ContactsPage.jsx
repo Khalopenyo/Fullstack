@@ -16,7 +16,7 @@ export default function ContactsPage() {
       description: "Контакты, адрес, часы работы и мессенджеры Memory.",
     });
     setCanonical(window.location.origin + "/contacts");
-    setOpenGraphImage(window.location.origin + "/logo192.png");
+    setOpenGraphImage(window.location.origin + "/og-home.png");
   }, []);
 
   const wa = SELLER_CONTACTS.whatsappPhone ? `https://wa.me/${SELLER_CONTACTS.whatsappPhone}` : null;

@@ -10,7 +10,7 @@ export default function DeliveryPage() {
       description: "Условия доставки масляных ароматов и сроки получения заказа.",
     });
     setCanonical(window.location.origin + "/delivery");
-    setOpenGraphImage(window.location.origin + "/logo192.png");
+    setOpenGraphImage(window.location.origin + "/og-home.png");
     const faqLd = {
       "@context": "https://schema.org",
       "@type": "FAQPage",

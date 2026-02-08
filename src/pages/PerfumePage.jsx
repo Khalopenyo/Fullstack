@@ -34,7 +34,7 @@ export default function PerfumePage() {
         : window.location.origin + perfume.image
       : "";
     setCanonical(window.location.origin + `/perfumes/${perfume.id}`);
-    setOpenGraphImage(absoluteImage || (window.location.origin + "/favicon.ico"));
+    setOpenGraphImage(absoluteImage || (window.location.origin + "/og-home.png"));
 
     const priceValidUntil = (() => {
       const d = new Date();

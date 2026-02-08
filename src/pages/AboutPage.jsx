@@ -10,7 +10,7 @@ export default function AboutPage() {
       description: "О бренде Memory, философии ароматов и качестве масляных композиций.",
     });
     setCanonical(window.location.origin + "/about");
-    setOpenGraphImage(window.location.origin + "/logo192.png");
+    setOpenGraphImage(window.location.origin + "/og-home.png");
   }, []);
 
   return (

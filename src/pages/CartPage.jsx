@@ -16,7 +16,7 @@ export default function CartPage() {
       description: "Проверь выбранные ароматы и оформи заказ.",
     });
     setCanonical(window.location.origin + "/cart");
-    setOpenGraphImage(window.location.origin + "/logo192.png");
+    setOpenGraphImage(window.location.origin + "/og-home.png");
     setRobots("noindex,follow");
   }, []);
 

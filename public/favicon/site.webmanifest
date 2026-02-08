@@ -1,27 +1,22 @@
 {
-  "short_name": "Memory",
   "name": "Memory",
+  "short_name": "Memory",
   "icons": [
     {
-      "src": "/favicon/favicon.ico",
-      "sizes": "48x48 32x32",
-      "type": "image/x-icon"
-    },
-    {
       "src": "/favicon/web-app-manifest-192x192.png",
-      "type": "image/png",
       "sizes": "192x192",
+      "type": "image/png",
       "purpose": "maskable"
     },
     {
       "src": "/favicon/web-app-manifest-512x512.png",
-      "type": "image/png",
       "sizes": "512x512",
+      "type": "image/png",
       "purpose": "maskable"
     }
   ],
   "start_url": "/",
-  "display": "standalone",
   "theme_color": "#0B0B0F",
-  "background_color": "#0B0B0F"
+  "background_color": "#0B0B0F",
+  "display": "standalone"
 }
