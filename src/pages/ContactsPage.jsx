@@ -4,10 +4,10 @@ import { THEME } from "../data/theme";
 import { SELLER_CONTACTS } from "../data/sellerContacts";
 import { setCanonical, setMeta, setOpenGraphImage } from "../lib/seo";
 
-const CONTACT_ADDRESS = "Грозный,улица.Назарбаева 66";
-const WORK_HOURS = "Ежедневно 9:00–20:00";
-const PHONE = "+7 (928) 071-71-71";
-const EMAIL = "bakhurparfum@mail.ru";
+const CONTACT_ADDRESS = "Проспект Путина 28, Грозный";
+const WORK_HOURS = "Ежедневно 10:00–20:00";
+const PHONE = "+7 (963) 000-16-00";
+const EMAIL = "memoryparfume@mail.ru";
 
 export default function ContactsPage() {
   React.useEffect(() => {
