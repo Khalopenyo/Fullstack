@@ -6,7 +6,7 @@ import { clearJsonLd, setCanonical, setJsonLd, setMeta, setOpenGraphImage } from
 export default function DeliveryPage() {
   React.useEffect(() => {
     setMeta({
-      title: "Bakhur — доставка",
+      title: "Memory — доставка",
       description: "Условия доставки масляных ароматов и сроки получения заказа.",
     });
     setCanonical(window.location.origin + "/delivery");

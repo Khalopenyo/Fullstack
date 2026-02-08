@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const siteUrl = process.env.SITE_URL || 'https://bakhur.online';
+const siteUrl = process.env.SITE_URL || 'https://memoryparfume.ru';
 const apiBase =
   process.env.API_URL ||
   process.env.PUBLIC_API_URL ||

@@ -47,7 +47,7 @@ useEffect(() => {
 
 useEffect(() => {
   setMeta({
-    title: "Bakhur — каталог масляных ароматов",
+    title: "Memory — каталог масляных ароматов",
     description: "Каталог масляных ароматов: подбор по нотам, сезонам и времени дня. Заказ через мессенджеры.",
   });
   setCanonical(window.location.origin + "/");
@@ -365,6 +365,7 @@ useEffect(() => {
     setActivePresetId("");
     setActiveGroupId("");
   };
+
 
   const toggleSeason = (s) => setSeasons((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
   const toggleDayNight = (d) => setDayNight((prev) => (prev.includes(d) ? prev.filter((x) => x !== d) : [...prev, d]));

@@ -26,7 +26,7 @@ export default function WholesalePage() {
 
   React.useEffect(() => {
     setMeta({
-      title: "Bakhur — оптовый каталог",
+      title: "Memory — оптовый каталог",
       description: "Оптовый каталог масляных ароматов: калькулятор цены по объему и условия для оптовиков.",
     });
     setCanonical(window.location.origin + "/wholesale");

@@ -1,4 +1,4 @@
-bakhur.online {
+memoryparfume.ru {
   encode gzip zstd
   request_body {
     max_size 20MB

@@ -17,7 +17,7 @@ export default function FavoritesPage() {
 
   React.useEffect(() => {
     setMeta({
-      title: "Bakhur — избранное",
+      title: "Memory — избранное",
       description: "Сохраняй любимые ароматы и возвращайся к ним позже.",
     });
     setCanonical(window.location.origin + "/favorites");
@@ -86,7 +86,7 @@ export default function FavoritesPage() {
         className="mt-10 border-t pt-6 text-xs"
         style={{ borderColor: THEME.border2, color: THEME.muted2 }}
       >
-        © {new Date().getFullYear()} Aroma Atelier
+        © {new Date().getFullYear()} Memory
       </footer>
     </main>
   );

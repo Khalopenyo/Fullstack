@@ -21,21 +21,28 @@ function buildPrerenderRoutes() {
   return routes;
 }
 
+const enablePrerender =
+  process.env.PRERENDER === "1" ||
+  process.env.PRERENDER === "true" ||
+  Boolean(process.env.PUPPETEER_EXECUTABLE_PATH);
+
 export default defineConfig({
   plugins: [
     react(),
-    vitePrerender({
-      staticDir: path.join(__dirname, "dist"),
-      routes: buildPrerenderRoutes(),
-      renderer: new vitePrerender.PuppeteerRenderer({
-        injectProperty: "__PRERENDER_INJECTED",
-        inject: { prerender: true },
-        renderAfterTime: 4000,
-        navigationOptions: { waitUntil: "domcontentloaded", timeout: 30000 },
-        maxConcurrentRoutes: 4,
-      }),
-    }),
-  ],
+    enablePrerender
+      ? vitePrerender({
+          staticDir: path.join(__dirname, "dist"),
+          routes: buildPrerenderRoutes(),
+          renderer: new vitePrerender.PuppeteerRenderer({
+            injectProperty: "__PRERENDER_INJECTED",
+            inject: { prerender: true },
+            renderAfterTime: 4000,
+            navigationOptions: { waitUntil: "domcontentloaded", timeout: 30000 },
+            maxConcurrentRoutes: 4,
+          }),
+        })
+      : null,
+  ].filter(Boolean),
   optimizeDeps: {
     esbuildOptions: {
       jsx: "automatic",

@@ -12,8 +12,8 @@ const EMAIL = "bakhurparfum@mail.ru";
 export default function ContactsPage() {
   React.useEffect(() => {
     setMeta({
-      title: "Bakhur — контакты",
-      description: "Контакты, адрес, часы работы и мессенджеры Bakhur.",
+      title: "Memory — контакты",
+      description: "Контакты, адрес, часы работы и мессенджеры Memory.",
     });
     setCanonical(window.location.origin + "/contacts");
     setOpenGraphImage(window.location.origin + "/logo192.png");

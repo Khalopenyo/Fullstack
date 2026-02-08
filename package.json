@@ -15,7 +15,7 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "sitemap": "SITE_URL=https://bakhur.online node scripts/generate-sitemap.js",
+    "sitemap": "SITE_URL=https://memoryparfume.ru node scripts/generate-sitemap.js",
     "postbuild": "npm run sitemap",
     "dev": "vite",
     "start": "vite",

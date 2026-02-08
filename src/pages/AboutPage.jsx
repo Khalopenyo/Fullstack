@@ -6,8 +6,8 @@ import { setCanonical, setMeta, setOpenGraphImage } from "../lib/seo";
 export default function AboutPage() {
   React.useEffect(() => {
     setMeta({
-      title: "Bakhur — о нас",
-      description: "О бренде Bakhur, философии ароматов и качестве масляных композиций.",
+      title: "Memory — о нас",
+      description: "О бренде Memory, философии ароматов и качестве масляных композиций.",
     });
     setCanonical(window.location.origin + "/about");
     setOpenGraphImage(window.location.origin + "/logo192.png");
@@ -25,7 +25,7 @@ export default function AboutPage() {
         <div className="mt-6 rounded-3xl border p-6" style={{ borderColor: THEME.border2, background: THEME.bg2 }}>
           <h1 className="text-lg font-semibold">О нас</h1>
           <p className="mt-2 text-sm leading-relaxed" style={{ color: THEME.muted }}>
-            Bakhur — это каталог масляных ароматов с фокусом на качество, стойкость и чистую композицию.
+            Memory — это каталог масляных ароматов с фокусом на качество, стойкость и чистую композицию.
             Мы отбираем ароматы по характеру, нотам и сезону, чтобы подбор был точным и удобным.
           </p>
           <p className="mt-3 text-sm leading-relaxed" style={{ color: THEME.muted }}>

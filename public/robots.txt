@@ -4,5 +4,5 @@ Disallow: /admin
 Disallow: /cart
 Disallow: /favorites
 
-Sitemap: https://bakhur.online/sitemap.xml
-Host: bakhur.online
+Sitemap: https://memoryparfume.ru/sitemap.xml
+Host: memoryparfume.ru

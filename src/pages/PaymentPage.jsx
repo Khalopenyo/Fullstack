@@ -6,7 +6,7 @@ import { clearJsonLd, setCanonical, setJsonLd, setMeta, setOpenGraphImage } from
 export default function PaymentPage() {
   React.useEffect(() => {
     setMeta({
-      title: "Bakhur — оплата",
+      title: "Memory — оплата",
       description: "Способы оплаты и подтверждение заказа.",
     });
     setCanonical(window.location.origin + "/payment");

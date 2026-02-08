@@ -12,7 +12,7 @@ export default function CartPage() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   React.useEffect(() => {
     setMeta({
-      title: "Bakhur — корзина",
+      title: "Memory — корзина",
       description: "Проверь выбранные ароматы и оформи заказ.",
     });
     setCanonical(window.location.origin + "/cart");

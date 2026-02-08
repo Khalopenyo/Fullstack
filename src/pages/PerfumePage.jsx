@@ -23,7 +23,7 @@ export default function PerfumePage() {
 
   React.useEffect(() => {
     if (!perfume) return;
-    const title = `${perfume.brand} — ${perfume.name} | Bakhur`;
+    const title = `${perfume.brand} — ${perfume.name} | Memory`;
     const desc =
       perfume.description ||
       `Аромат ${perfume.brand} ${perfume.name}. Масляные духи с подбором по нотам, сезонам и времени дня.`;
@@ -51,7 +51,7 @@ export default function PerfumePage() {
       sku: perfume.id,
       brand: {
         "@type": "Brand",
-        name: perfume.brand || "Bakhur",
+        name: perfume.brand || "Memory",
       },
       offers: {
         "@type": "Offer",
@@ -289,7 +289,7 @@ export default function PerfumePage() {
                   className="inline-flex items-center rounded-full border px-3 py-2 text-sm"
                   style={{ borderColor: THEME.border2, color: THEME.text }}
                 >
-                  Все ароматы бренда {perfume.brand || "Bakhur"}
+                  Все ароматы бренда {perfume.brand || "Memory"}
                 </Link>
               </div>
             </div>

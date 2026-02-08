@@ -59,7 +59,7 @@ export default function CatalogHeader({
             </div>
             <div>
               <div className="text-sm font-semibold" style={{ letterSpacing: 0.2 }}>
-                Bakhur
+                Memory
               </div>
               <div className="text-xs" style={{ color: THEME.muted }}>
                 {/* Сертифицированные маслянные ароматы */}
